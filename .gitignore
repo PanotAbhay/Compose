@@ -2,3 +2,12 @@ node_modules
 dist
 .DS_Store
 .claude/settings.local.json
+
+# Hackathon leftovers, not needed to run the app
+pitch/
+sample/
+Compose (standalone).html
+Lab Manual.pdf
+hackrules.pdf
+notes.txt
+compose-logo.png

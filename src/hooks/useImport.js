@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { STORAGE_KEYS, TEMPLATES } from "../data/index.js";
 import { readStorage, writeStorage } from "../utils/storage.js";
-import { nid, plainParas, parseJsonReply, blocksFromPlan, paraBlocks, splitHeadline, promptPara } from "../utils/blocks.js";
+import { nid, plainParas, blocksFromPlan, paraBlocks, splitHeadline, promptPara } from "../utils/blocks.js";
 import { readDocx, readPdf, pickFile } from "../utils/fileReaders.js";
-import { callAi, transcribePdf } from "../utils/ai.js";
+import { callAiJson, aiErrorMessage, transcribePdf } from "../utils/ai.js";
 import { importPrompt } from "../utils/prompts.js";
 
 const DOC_ACCEPT = ".txt,.md,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -14,12 +14,10 @@ const IMPORT_MAX_TOKENS = 16000;
 function importErrorMessage(e) {
   const m = String((e && e.message) || e);
   if (/TIMED_OUT/.test(m)) return "THE MODEL DIDN’T ANSWER IN 5 MINUTES — TRY A SHORTER ARTICLE OR A FASTER MODEL.";
-  if (/EMPTY_REPLY/.test(m)) return "THE MODEL SENT BACK NOTHING — TRY AGAIN, OR PICK A NON-REASONING MODEL IN SETTINGS.";
   if (e instanceof SyntaxError) return "THE MODEL’S REPLY WASN’T A LAYOUT PLAN — TRY AGAIN, OR USE PLAIN TEXT ONLY.";
   if (/rate|429/i.test(m)) return "RATE LIMITED — WAIT, THEN RETRY.";
-  if (/api key|401|403|Settings/i.test(m)) return m.toUpperCase().slice(0, 90);
   if (/failed to fetch|networkerror/i.test(m)) return "CAN’T REACH THE MODEL — CHECK KEY, MODEL NAME AND CONNECTION.";
-  return "COULDN’T FORMAT — TRY AGAIN.";
+  return aiErrorMessage(e) || "COULDN’T FORMAT — TRY AGAIN.";
 }
 
 export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, template }) {
@@ -146,17 +144,9 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
     }, 1000);
 
     try {
-      const call = callAi(aiConfig, importPrompt(template), paras.map((p, i) => "[" + i + "] " + promptPara(p)).join("\n\n"), IMPORT_MAX_TOKENS, { json: true });
+      const call = callAiJson(aiConfig, importPrompt(template), paras.map((p, i) => "[" + i + "] " + promptPara(p)).join("\n\n"), IMPORT_MAX_TOKENS);
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMED_OUT")), IMPORT_TIMEOUT));
-      const reply = await Promise.race([call, timeout]);
-      let plan;
-      try {
-        plan = parseJsonReply(reply);
-      } catch (e) {
-        // Kept in the console so a bad reply can be looked at.
-        console.error("[Compose] unreadable plan from the model:", reply);
-        throw e;
-      }
+      const plan = await Promise.race([call, timeout]);
       const typeOrder = (template.starter || []).map((b) => b.type);
       const { blocks, counts } = blocksFromPlan(plan, paras, template.blocks, { numbered, images, typeOrder });
       // The template stays fixed; a different suggestion is only mentioned.

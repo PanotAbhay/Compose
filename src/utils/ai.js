@@ -1,5 +1,6 @@
 import { AI_MODELS } from "../data/index.js";
 import { PDF_TRANSCRIBE_PROMPT } from "./prompts.js";
+import { parseJsonReply } from "./blocks.js";
 
 const ANTHROPIC_HEADERS = {
   "content-type": "application/json",
@@ -17,9 +18,10 @@ export function resolveAiConfig(ai) {
   return { provider, model: a.model || AI_MODELS[provider], key: a.key || "" };
 }
 
-// Messages worth showing verbatim; anything else gets the caller's fallback.
+// Messages worth showing the user; anything else gets the caller's fallback.
 export function aiErrorMessage(e) {
   const m = String((e && e.message) || e);
+  if (/EMPTY_REPLY/.test(m)) return "THE MODEL SENT BACK NOTHING — TRY AGAIN, OR PICK A NON-REASONING MODEL IN SETTINGS.";
   return /api key|Settings|401|403|failed to fetch/i.test(m) ? m.toUpperCase().slice(0, 90) : null;
 }
 
@@ -31,6 +33,10 @@ function geminiUrl(config) {
 function geminiText(d) {
   const p = d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts;
   return String((p && p[0] && p[0].text) || "");
+}
+
+function anthropicText(d) {
+  return (d.content || []).filter((c) => c.type === "text").map((c) => c.text).join("");
 }
 
 async function readError(label, r, length) {
@@ -47,12 +53,12 @@ function geminiMaxTokens(model, maxTokens) {
 function replyText(text, label, stop) {
   const s = String(text || "");
   if (!s.trim()) throw new Error("EMPTY_REPLY " + label + (stop ? " (" + stop + ")" : ""));
-  if (/length|max_tokens|MAX_TOKENS/.test(String(stop || ""))) console.warn("[Compose] " + label + " reply was cut off at the token limit; salvaging what arrived.");
+  if (/length|max_tokens/i.test(stop)) console.warn("[Compose] " + label + " reply was cut off at the token limit; salvaging what arrived.");
   return s;
 }
 
 // One call site for every model provider. `json` asks providers that support it for JSON output.
-export async function callAi(config, system, user, maxTokens, { json = false } = {}) {
+export async function callAi(config, system, user, maxTokens, { json } = {}) {
   if (config.provider === "builtin") {
     if (!hasBuiltinModel()) {
       throw new Error("The built-in model is only available inside the design tool. Open Settings and choose a provider.");
@@ -91,8 +97,7 @@ export async function callAi(config, system, user, maxTokens, { json = false } =
     });
     if (!r.ok) throw await readError("Anthropic", r, 120);
     const d = await r.json();
-    const text = (d.content || []).filter((c) => c.type === "text").map((c) => c.text).join("");
-    return replyText(text, "Anthropic", d.stop_reason);
+    return replyText(anthropicText(d), "Anthropic", d.stop_reason);
   }
 
   if (config.provider === "openai") {
@@ -127,6 +132,17 @@ export async function callAi(config, system, user, maxTokens, { json = false } =
   }
 
   throw new Error("Unknown provider");
+}
+
+// The parsed JSON reply; one that can't be read is logged so it can be looked at.
+export async function callAiJson(config, system, user, maxTokens) {
+  const reply = await callAi(config, system, user, maxTokens, { json: true });
+  try {
+    return parseJsonReply(reply);
+  } catch (e) {
+    console.error("[Compose] unreadable JSON from the model:", reply);
+    throw e;
+  }
 }
 
 function readAsBase64(file) {
@@ -165,8 +181,7 @@ export async function transcribePdf(config, file) {
       }),
     });
     if (!r.ok) throw await readError("Anthropic", r, 140);
-    const d = await r.json();
-    return String((d.content && d.content[0] && d.content[0].text) || "");
+    return anthropicText(await r.json());
   }
 
   const r = await fetch(geminiUrl(config), {
@@ -174,7 +189,7 @@ export async function transcribePdf(config, file) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ inline_data: { mime_type: "application/pdf", data } }, { text: PDF_TRANSCRIBE_PROMPT }] }],
-      generationConfig: { maxOutputTokens: 16000 },
+      generationConfig: { maxOutputTokens: geminiMaxTokens(config.model, 16000) },
     }),
   });
   if (!r.ok) throw await readError("Gemini", r, 140);

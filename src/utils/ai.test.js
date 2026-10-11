@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { callAi } from "./ai.js";
+import { callAi, callAiJson, aiErrorMessage } from "./ai.js";
 
 function mockFetch(body) {
-  const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) });
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => body });
   vi.stubGlobal("fetch", fetch);
   return fetch;
 }
@@ -66,5 +66,30 @@ describe("callAi", () => {
   it("passes provider errors through with their status", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404, text: async () => "model not found" }));
     await expect(callAi({ provider: "openai", model: "nope", key: "k" }, "s", "u", 10)).rejects.toThrow("OpenAI 404 model not found");
+  });
+});
+
+describe("callAiJson", () => {
+  const OPENAI = { provider: "openai", model: "gpt-4o", key: "k" };
+
+  it("asks for JSON and parses the reply", async () => {
+    const fetch = mockFetch({ choices: [{ message: { content: '```json\n{"a":1}\n```' } }] });
+    expect(await callAiJson(OPENAI, "s", "u", 100)).toEqual({ a: 1 });
+    expect(sent(fetch).response_format).toEqual({ type: "json_object" });
+  });
+
+  it("logs a reply it can't read", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockFetch({ choices: [{ message: { content: "Sorry, no." } }] });
+    await expect(callAiJson(OPENAI, "s", "u", 100)).rejects.toThrow(SyntaxError);
+    expect(error.mock.calls[0][1]).toBe("Sorry, no.");
+  });
+});
+
+describe("aiErrorMessage", () => {
+  it("explains an empty reply and passes key errors through", () => {
+    expect(aiErrorMessage(new Error("EMPTY_REPLY OpenAI (length)"))).toMatch(/SENT BACK NOTHING/);
+    expect(aiErrorMessage(new Error("No API key set. Open Settings to add one."))).toMatch(/^NO API KEY SET/);
+    expect(aiErrorMessage(new Error("boom"))).toBeNull();
   });
 });

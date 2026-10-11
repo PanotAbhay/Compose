@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { TEMPLATES } from "../data/index.js";
 import { useImport } from "./useImport.js";
@@ -31,7 +31,19 @@ const MANUAL = [
   "# Appendix A: Scripts",
 ].join("\n\n").replace("```sql\n\nCREATE", "```sql\nCREATE").replace(";\n\n\n\nSELECT", ";\n\nSELECT").replace("emp;\n\n```", "emp;\n```");
 
+async function importAiWith(reply) {
+  const s = setup("lab", reply);
+  act(() => s.hook.result.current.setRaw(MANUAL));
+  await act(async () => { await s.hook.result.current.importAi(); });
+  return s;
+}
+
 describe("useImport", () => {
+  afterEach(() => {
+    delete window.claude;
+    vi.restoreAllMocks();
+  });
+
   it("imports marked text as plain text into Lab manual blocks", () => {
     const { hook, save } = setup("lab");
     act(() => hook.result.current.setRaw(MANUAL));
@@ -63,9 +75,7 @@ describe("useImport", () => {
 
   it("sends code to the AI as a summary and still imports it verbatim", async () => {
     const reply = JSON.stringify({ headline: "Database Lab Manual", standfirst: "", author: "QMUL", insertions: [{ after: 4, type: "nutshell", title: "Safety", items: ["Back up first."] }] });
-    const { hook, save } = setup("lab", reply);
-    act(() => hook.result.current.setRaw(MANUAL));
-    await act(async () => { await hook.result.current.importAi(); });
+    const { save } = await importAiWith(reply);
     const [{ messages, max_tokens }] = window.claude.complete.mock.calls[0];
     expect(max_tokens).toBe(16000);
     expect(messages[0].content).toContain("```sql (3 lines of code)```");
@@ -73,37 +83,27 @@ describe("useImport", () => {
     const blocks = save.mock.calls[0][0];
     expect(blocks.find((b) => b.type === "code").text).toContain("CREATE TABLE emp");
     expect(blocks.map((b) => b.type)).toContain("nutshell");
-    delete window.claude;
   });
 
   it("explains a reply that isn't a plan, and logs it", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { hook, save } = setup("lab", "Sorry, I can't format that.");
-    act(() => hook.result.current.setRaw(MANUAL));
-    await act(async () => { await hook.result.current.importAi(); });
+    const { hook, save } = await importAiWith("Sorry, I can't format that.");
     expect(save).not.toHaveBeenCalled();
     expect(hook.result.current.importNote).toMatch(/WASN’T A LAYOUT PLAN/);
     expect(error.mock.calls.some((c) => String(c[1]).includes("Sorry"))).toBe(true);
-    delete window.claude;
   });
 
   it("explains an empty reply", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { hook, save } = setup("lab", "");
-    act(() => hook.result.current.setRaw(MANUAL));
-    await act(async () => { await hook.result.current.importAi(); });
+    const { hook, save } = await importAiWith("");
     expect(save).not.toHaveBeenCalled();
     expect(hook.result.current.importNote).toMatch(/SENT BACK NOTHING/);
-    delete window.claude;
   });
 
   it("builds the page from a plan cut off part-way", async () => {
-    const { hook, save } = setup("lab", '{"headline":"Database Lab Manual","insertions":[{"after":4,"type":"nutshell","title":"Safety","items":["Back up first."]},{"after":6,"type":"h2","text":"Cut of');
-    act(() => hook.result.current.setRaw(MANUAL));
-    await act(async () => { await hook.result.current.importAi(); });
-    const blocks = save.mock.calls[0][0];
-    expect(blocks.map((b) => b.type)).toContain("nutshell");
-    expect(blocks.map((b) => b.type)).toContain("chapter");
-    delete window.claude;
+    const { save } = await importAiWith('{"headline":"Database Lab Manual","insertions":[{"after":4,"type":"nutshell","title":"Safety","items":["Back up first."]},{"after":6,"type":"h2","text":"Cut of');
+    const types = save.mock.calls[0][0].map((b) => b.type);
+    expect(types).toContain("nutshell");
+    expect(types).toContain("chapter");
   });
 });

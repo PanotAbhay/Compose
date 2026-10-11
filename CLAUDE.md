@@ -15,8 +15,8 @@ Tests sit next to the code they cover (`*.test.js` / `*.test.jsx`) and run in js
 
 ## Origin and visual fidelity
 
-- `Compose (standalone).html` is the original single-file build (a compressed bundle with a custom template runtime). The React app is a port of it and was verified pixel-identical in headless Chrome.
-- Keep the visuals identical to that HTML unless asked to change them. Copy colours, spacing and fonts exactly; don't "improve" them.
+- The React app is a port of an original single-file HTML build (a compressed bundle with a custom template runtime), verified pixel-identical in headless Chrome. That file is no longer in the repo (it is gitignored, so a local copy may exist as `Compose (standalone).html`); the running app is now the reference.
+- Keep the existing visuals unless asked to change them. Copy colours, spacing and fonts exactly; don't "improve" them.
 - The original's runtime ignored `style-hover` attributes, so the port deliberately has **no hover effects**. It also never rendered line-chart y-axis labels, so those are omitted too.
 - Since the port, Rewrite and the AI "Add"/Suggest modal were removed on purpose. Don't reintroduce them.
 

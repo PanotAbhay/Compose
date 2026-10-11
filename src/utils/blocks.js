@@ -117,17 +117,13 @@ export function plainParas(text) {
   return out;
 }
 
-export function stripFences(reply) {
-  return String(reply || "").trim().replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
-}
-
 // A reply cut off mid-JSON (the model hit its token limit): keep everything up to the last
 // complete object or array and close the brackets still open, so the plan so far survives.
 function closeTruncated(s) {
-  const open = [];
+  let open = "";
   let inString = false;
   let escaped = false;
-  let cut = -1;
+  let cut = 0;
   let closers = "";
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
@@ -136,32 +132,27 @@ function closeTruncated(s) {
       else if (c === "\\") escaped = true;
       else if (c === '"') inString = false;
     } else if (c === '"') inString = true;
-    else if (c === "{" || c === "[") open.push(c === "{" ? "}" : "]");
+    else if (c === "{" || c === "[") open = (c === "{" ? "}" : "]") + open;
     else if (c === "}" || c === "]") {
-      open.pop();
+      open = open.slice(1);
       cut = i + 1;
-      closers = open.slice().reverse().join("");
+      closers = open;
     }
   }
-  return cut < 0 ? null : s.slice(0, cut).replace(/,\s*$/, "") + closers;
+  return s.slice(0, cut) + closers;
 }
 
 // The JSON object in a model's reply, tolerating code fences, text around it, trailing commas
 // and a reply cut off part-way.
 export function parseJsonReply(reply) {
-  const s = stripFences(reply);
+  const s = String(reply || "");
   const a = s.indexOf("{");
   if (a < 0) throw new SyntaxError("No JSON object in the reply");
   const from = s.slice(a);
-  const b = from.lastIndexOf("}");
   try {
-    return JSON.parse(from.slice(0, b + 1));
+    return JSON.parse(from.slice(0, from.lastIndexOf("}") + 1));
   } catch (e) {
-    const fixed = closeTruncated(from.replace(/,(\s*[}\]])/g, "$1"));
-    if (fixed) {
-      try { return JSON.parse(fixed); } catch { /* fall through to the original error */ }
-    }
-    throw e;
+    try { return JSON.parse(closeTruncated(from.replace(/,(\s*[}\]])/g, "$1"))); } catch { throw e; }
   }
 }
 

@@ -11,16 +11,14 @@ const IMPORT_TIMEOUT = 300000;
 // The plan for a long document (a 50-page manual) lists hundreds of insertions.
 const IMPORT_MAX_TOKENS = 16000;
 
-function importErrorMessage(e) {
+function importErrorMessage(e, aiConfig) {
   const m = String((e && e.message) || e);
   if (/TIMED_OUT/.test(m)) return "THE MODEL DIDN’T ANSWER IN 5 MINUTES — TRY A SHORTER ARTICLE OR A FASTER MODEL.";
   if (e instanceof SyntaxError) return "THE MODEL’S REPLY WASN’T A LAYOUT PLAN — TRY AGAIN, OR USE PLAIN TEXT ONLY.";
-  if (/rate|429/i.test(m)) return "RATE LIMITED — WAIT, THEN RETRY.";
-  if (/failed to fetch|networkerror/i.test(m)) return "CAN’T REACH THE MODEL — CHECK KEY, MODEL NAME AND CONNECTION.";
-  return aiErrorMessage(e) || "COULDN’T FORMAT — TRY AGAIN.";
+  return aiErrorMessage(e, aiConfig) || "COULDN’T FORMAT — TRY AGAIN.";
 }
 
-export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, template }) {
+export function useImport({ busy, setBusy, save, flash, undoOffer, aiConfig, template }) {
   const [recovered, setRecovered] = useState(() =>
     // Any article text imported previously stays available to re-import.
     readStorage(STORAGE_KEYS.recovered) || readStorage(STORAGE_KEYS.legacyRecovered) || ""
@@ -28,18 +26,36 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
   const [raw, setRaw] = useState(recovered);
   const [importOpen, setImportOpen] = useState(false);
   const [importNote, setImportNote] = useState("");
+  const [importErr, setImportErr] = useState(false);
   const [fileNote, setFileNote] = useState("");
+  const [fileErr, setFileErr] = useState(false);
+  const [reading, setReading] = useState(false);
   // Pictures cut out of an imported PDF, for its [[image N]] markers. Not autosaved with the text.
   const [images, setImages] = useState([]);
   const timerRef = useRef(null);
+  // The AI import in flight; cancelling clears it, so a late reply is dropped.
+  const runRef = useRef(null);
   const numbered = !!template.theme.numbering;
 
-  useEffect(() => () => clearInterval(timerRef.current), []);
+  useEffect(() => () => {
+    clearInterval(timerRef.current);
+    if (runRef.current) runRef.current.abort();
+  }, []);
+
+  function note(msg, err) {
+    setImportNote(msg);
+    setImportErr(!!err);
+  }
 
   function openImport() {
     setImportOpen(true);
-    setImportNote("");
+    note("");
     setFileNote("");
+    setFileErr(false);
+  }
+
+  function undoAction() {
+    return undoOffer ? undoOffer() : undefined;
   }
 
   function keepSource(text) {
@@ -48,15 +64,15 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
   }
 
   function failEmpty() {
-    setImportNote("PASTE AN ARTICLE FIRST.");
-    setNoteErr(true);
+    note(raw.trim() ? "NEED AT LEAST TWO PARAGRAPHS — SEPARATE THEM WITH A BLANK LINE." : "PASTE AN ARTICLE FIRST.", true);
   }
 
   async function loadDocFile(file) {
     const name = String(file.name || "");
     setFileNote("Reading " + name + "…");
-    setImportNote("");
-    setNoteErr(false);
+    setFileErr(false);
+    setReading(true);
+    note("");
     try {
       let text = "";
       let pictures = [];
@@ -82,8 +98,10 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
       const found = pictures.filter(Boolean).length;
       setFileNote(name + " — " + words.toLocaleString() + " words" + (found ? ", " + found + " pictures" : "") + " loaded");
     } catch (e) {
-      setFileNote(String((e && e.message) || e));
-      setNoteErr(true);
+      setFileNote(aiErrorMessage(e, aiConfig) || String((e && e.message) || e));
+      setFileErr(true);
+    } finally {
+      setReading(false);
     }
   }
 
@@ -94,6 +112,7 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
   }
 
   function importPlain() {
+    if (busy || reading) return;
     keepSource(raw);
     const paras = plainParas(raw);
     if (paras.length < 2) { failEmpty(); return; }
@@ -115,8 +134,8 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
       ...blocks,
     ]);
     setImportOpen(false);
-    setImportNote("");
-    flash("IMPORTED " + paras.length + " PARAGRAPHS");
+    note("");
+    flash("IMPORTED " + paras.length + " PARAGRAPHS", false, undoAction());
   }
 
   function stopTimer() {
@@ -125,13 +144,12 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
   }
 
   async function importAi() {
-    if (busy) return;
+    if (busy || reading) return;
     keepSource(raw);
     const paras = plainParas(raw);
     if (paras.length < 2) { failEmpty(); return; }
     setBusy(true);
-    setImportNote("READING " + paras.length + " PARAGRAPHS…");
-    setNoteErr(false);
+    note("READING " + paras.length + " PARAGRAPHS…");
 
     // A long article can take a minute; show it is still working.
     const t0 = Date.now();
@@ -139,14 +157,17 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
     timerRef.current = setInterval(() => {
       const s = Math.round((Date.now() - t0) / 1000);
       const stage = s < 12 ? "READING " + paras.length + " PARAGRAPHS" : (s < 30 ? "PLANNING THE LAYOUT" : "BUILDING THE ELEMENTS");
-      setImportNote(stage + "… " + s + "S");
-      setNoteErr(false);
+      note(stage + "… " + s + "S");
     }, 1000);
 
+    const run = new AbortController();
+    runRef.current = run;
+    let timeoutId = null;
     try {
-      const call = callAiJson(aiConfig, importPrompt(template), paras.map((p, i) => "[" + i + "] " + promptPara(p)).join("\n\n"), IMPORT_MAX_TOKENS);
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("TIMED_OUT")), IMPORT_TIMEOUT));
+      const call = callAiJson(aiConfig, importPrompt(template), paras.map((p, i) => "[" + i + "] " + promptPara(p)).join("\n\n"), IMPORT_MAX_TOKENS, { signal: run.signal });
+      const timeout = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new Error("TIMED_OUT")), IMPORT_TIMEOUT); });
       const plan = await Promise.race([call, timeout]);
+      if (runRef.current !== run) return;
       const typeOrder = (template.starter || []).map((b) => b.type);
       const { blocks, counts } = blocksFromPlan(plan, paras, template.blocks, { numbered, images, typeOrder });
       // The template stays fixed; a different suggestion is only mentioned.
@@ -157,25 +178,44 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
       save(blocks);
       setBusy(false);
       setImportOpen(false);
-      setImportNote("");
-      flash("FORMATTED · " + counts.h2 + " SUB-HEADS · " + counts.data + " DATA ELEMENTS · " + counts.img + " IMAGES" + hint);
+      note("");
+      flash("FORMATTED · " + counts.h2 + " SUB-HEADS · " + counts.data + " DATA ELEMENTS · " + counts.img + " IMAGES" + hint, false, undoAction());
     } catch (e) {
+      if (runRef.current !== run) return;
       stopTimer();
       console.error("[Compose] import failed", e);
       setBusy(false);
-      setImportNote(importErrorMessage(e));
-      setNoteErr(true);
+      note(importErrorMessage(e, aiConfig), true);
+    } finally {
+      clearTimeout(timeoutId);
+      if (runRef.current === run) runRef.current = null;
     }
+  }
+
+  // Cancel, Escape and closing the modal all stop a running import; its reply is then ignored.
+  function closeImport() {
+    const run = runRef.current;
+    setImportOpen(false);
+    if (!run) return;
+    runRef.current = null;
+    run.abort();
+    stopTimer();
+    setBusy(false);
+    note("");
+    flash("IMPORT CANCELLED — THE PAGE WASN’T CHANGED");
   }
 
   return {
     importOpen,
     openImport,
-    closeImport: () => setImportOpen(false),
+    closeImport,
     raw,
     setRaw,
     importNote,
+    importErr,
     fileNote,
+    fileErr,
+    reading,
     recovered,
     pickDocFile: () => pickFile(DOC_ACCEPT, loadDocFile),
     restoreRecovered,

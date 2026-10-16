@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  sectionEnd, moveSection, moveBlock, mergeProse, plainParas, paraBlocks, splitHeadline, promptPara, isMarked,
+  sectionEnd, moveSection, moveBlock, nudgeBlock, mergeProse, plainParas, paraBlocks, splitHeadline, promptPara, isMarked,
   inlineHtml, inlineCodeHtml, escapeHtml, elementToBlock, blocksFromPlan, parseJsonReply, countWords, createStarterBlocks,
 } from "./blocks.js";
 import { TEMPLATES, TEMPLATE_KEYS } from "../data/index.js";
@@ -40,6 +40,32 @@ describe("moveBlock", () => {
     const doc = [b("body", { id: "a" }), b("body", { id: "b" }), b("body", { id: "c" })];
     expect(moveBlock(doc, "a", 3).map((x) => x.id)).toEqual(["b", "c", "a"]);
     expect(moveBlock(doc, "missing", 0)).toBeNull();
+  });
+});
+
+describe("nudgeBlock", () => {
+  const ids = (blocks) => blocks.map((x) => x.id);
+  const doc = [
+    b("h1", { id: "t" }), b("standfirst", { id: "s" }), b("byline", { id: "by" }), b("body", { id: "p0" }),
+    b("h2", { id: "A" }), b("body", { id: "a1" }), b("quote", { id: "q" }),
+    b("h2", { id: "B" }), b("body", { id: "b1" }),
+  ];
+
+  it("moves an ordinary block one step either way", () => {
+    expect(ids(nudgeBlock(doc, "q", -1))).toEqual(["t", "s", "by", "p0", "A", "q", "a1", "B", "b1"]);
+    expect(ids(nudgeBlock(doc, "q", 1))).toEqual(["t", "s", "by", "p0", "A", "a1", "B", "q", "b1"]);
+  });
+
+  it("steps a heading and its section over the whole neighbouring section", () => {
+    expect(ids(nudgeBlock(doc, "A", 1))).toEqual(["t", "s", "by", "p0", "B", "b1", "A", "a1", "q"]);
+    expect(ids(nudgeBlock(doc, "B", -1))).toEqual(["t", "s", "by", "p0", "B", "b1", "A", "a1", "q"]);
+  });
+
+  it("stops at the masthead and at the end", () => {
+    expect(nudgeBlock(doc, "by", -1)).toBeNull();
+    expect(nudgeBlock(doc, "B", 1)).toBeNull();
+    expect(nudgeBlock(doc, "b1", 1)).toBeNull();
+    expect(nudgeBlock(doc, "missing", 1)).toBeNull();
   });
 });
 

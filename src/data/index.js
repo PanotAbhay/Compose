@@ -157,6 +157,17 @@ export const TEXT_TYPE_OPTIONS = [
   { value: "numbered", label: "Numbered list" },
 ];
 
+// The name a block goes by in messages ("DELETED BAR CHART"), matching the palette.
+export const BLOCK_LABELS = {
+  ...Object.fromEntries(TEXT_TYPE_OPTIONS.map((o) => [o.value, o.label])),
+  ...Object.fromEntries(PALETTE_GROUPS.flatMap((g) => g.items).map((i) => [i.type, i.label])),
+  body: "Paragraph",
+};
+
+export function blockLabel(type) {
+  return BLOCK_LABELS[type] || "Block";
+}
+
 // Page layouts a document can use: one continuous web page, or A4 sheets with one or two columns.
 export const LAYOUTS = [
   { key: "web", label: "Web", icon: "web", hint: "Web — one continuous page" },

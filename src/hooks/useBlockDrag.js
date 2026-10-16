@@ -4,7 +4,7 @@ import { moveBlock, moveSection } from "../utils/blocks.js";
 import { selectedProseIds } from "../utils/dom.js";
 
 // Drag state for palette items and block handles, plus the drop indicator position.
-export function useBlockDrag({ getBlocks, save, insertBlock, onFill }) {
+export function useBlockDrag({ getBlocks, save, insertBlock, onFill, flash }) {
   const [drop, setDrop] = useState({ index: -1, line: null });
   const dragRef = useRef(null);
 
@@ -42,8 +42,14 @@ export function useBlockDrag({ getBlocks, save, insertBlock, onFill }) {
     clearDrop();
     if (!d) return;
     if (d.kind === "move") {
-      const next = d.run ? moveSection(getBlocks(), d.id, index) : moveBlock(getBlocks(), d.id, index);
-      if (next) save(next);
+      const cur = getBlocks();
+      const next = d.run ? moveSection(cur, d.id, index) : moveBlock(cur, d.id, index);
+      if (!next) {
+        if (d.run) flash("A SECTION CAN’T MOVE INSIDE ITSELF", true);
+        return;
+      }
+      // Dropped back where it was: nothing to save, so no empty undo step.
+      if (next.some((b, i) => b !== cur[i])) save(next);
       return;
     }
     const id = insertBlock(index, NEW_BLOCK[d.type]());

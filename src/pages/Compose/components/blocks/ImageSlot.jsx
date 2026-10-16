@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { pressable } from "../../../../utils/dom.js";
 import "./ImageSlot.css";
 
 export const DEFAULT_FRAME = { x: 50, y: 50, zoom: 1 };
@@ -126,6 +127,7 @@ export function ImageSlot({ src, frame, height, aspect, emptyStyle, children, on
         ...(!src && emptyStyle),
       }}
       onClick={(e) => { if (!src) { e.stopPropagation(); onPick(); } }}
+      {...(!src && pressable((e) => { e.stopPropagation(); onPick(); }))}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -147,8 +149,8 @@ export function ImageSlot({ src, frame, height, aspect, emptyStyle, children, on
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <button className="image-slot-btn" title="Zoom out" onClick={() => commit(zoomTo(shown.zoom - 0.25))}>
-            <span className="ms image-slot-icon">remove</span>
+          <button className="image-slot-btn" title="Zoom out" aria-label="Zoom out" onClick={() => commit(zoomTo(shown.zoom - 0.25))}>
+            <span className="ms image-slot-icon" aria-hidden="true">remove</span>
           </button>
           <input
             className="image-slot-range"
@@ -158,19 +160,20 @@ export function ImageSlot({ src, frame, height, aspect, emptyStyle, children, on
             step="0.01"
             value={shown.zoom}
             title="Zoom"
+            aria-label="Photo zoom"
             onChange={(e) => preview(zoomTo(Number(e.target.value)))}
             onPointerUp={() => latest.current.live && commit(latest.current.live)}
             onKeyUp={() => latest.current.live && commit(latest.current.live)}
           />
-          <button className="image-slot-btn" title="Zoom in" onClick={() => commit(zoomTo(shown.zoom + 0.25))}>
-            <span className="ms image-slot-icon">add</span>
+          <button className="image-slot-btn" title="Zoom in" aria-label="Zoom in" onClick={() => commit(zoomTo(shown.zoom + 0.25))}>
+            <span className="ms image-slot-icon" aria-hidden="true">add</span>
           </button>
           <span className="image-slot-sep"></span>
-          <button className="image-slot-btn" title="Reset framing" onClick={() => commit({ ...DEFAULT_FRAME })}>
-            <span className="ms image-slot-icon">fit_screen</span>
+          <button className="image-slot-btn" title="Reset framing" aria-label="Reset framing" onClick={() => commit({ ...DEFAULT_FRAME })}>
+            <span className="ms image-slot-icon" aria-hidden="true">fit_screen</span>
           </button>
-          <button className="image-slot-btn" title="Replace photo" onClick={onPick}>
-            <span className="ms image-slot-icon">image</span>
+          <button className="image-slot-btn" title="Replace photo" aria-label="Replace photo" onClick={onPick}>
+            <span className="ms image-slot-icon" aria-hidden="true">image</span>
           </button>
         </div>
       )}

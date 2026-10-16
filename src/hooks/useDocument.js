@@ -40,12 +40,17 @@ export function useDocument({ doc, updateDoc, flash }) {
     write(next);
   }
 
-  function step(from, to, emptyMsg, doneMsg) {
+  function step(back, emptyMsg, doneMsg) {
+    // Blur first: committing a focused field saves its edit, which this step then reverts.
+    // Reading the history afterwards keeps the redo stack that save() just replaced.
+    document.activeElement?.blur?.();
+    const h = history();
+    const from = back ? h.undo : h.redo;
+    const to = back ? h.redo : h.undo;
     if (!from.length) {
-      flash(emptyMsg, true);
+      flash(emptyMsg);
       return false;
     }
-    document.activeElement?.blur?.();
     to.push(blocksRef.current);
     write(from.pop());
     flash(doneMsg);
@@ -53,22 +58,25 @@ export function useDocument({ doc, updateDoc, flash }) {
   }
 
   function undo() {
-    const h = history();
-    return step(h.undo, h.redo, "NOTHING TO UNDO", "UNDONE");
+    return step(true, "NOTHING TO UNDO", "UNDONE");
   }
 
   function redo() {
-    const h = history();
-    return step(h.redo, h.undo, "NOTHING TO REDO", "REDONE");
+    return step(false, "NOTHING TO REDO", "REDONE");
   }
 
+  // An edit that changes nothing (a field focused and left) adds no undo step and keeps redo.
   function patch(id, fn) {
-    save(blocksRef.current.map((b) => {
+    let changed = false;
+    const next = blocksRef.current.map((b) => {
       if (b.id !== id) return b;
       const copy = cloneBlock(b);
       fn(copy);
+      if (JSON.stringify(copy) === JSON.stringify(b)) return b;
+      changed = true;
       return copy;
-    }));
+    });
+    if (changed) save(next);
   }
 
   function insertAt(index, block) {

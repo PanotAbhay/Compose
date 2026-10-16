@@ -3,14 +3,16 @@ import { renderHook, act } from "@testing-library/react";
 import { TEMPLATES } from "../data/index.js";
 import { useImport } from "./useImport.js";
 
+const UNDO = { label: "UNDO", run: () => {} };
+
 function setup(templateKey = "lab", aiReply = null) {
   const save = vi.fn();
   const flash = vi.fn();
   const setBusy = vi.fn();
-  const setNoteErr = vi.fn();
+  const undoOffer = vi.fn(() => UNDO);
   const aiConfig = { provider: "builtin", model: "test" };
   if (aiReply != null) window.claude = { complete: vi.fn().mockResolvedValue(aiReply) };
-  const hook = renderHook(() => useImport({ busy: false, setBusy, save, flash, setNoteErr, aiConfig, template: TEMPLATES[templateKey] }));
+  const hook = renderHook(() => useImport({ busy: false, setBusy, save, flash, undoOffer, aiConfig, template: TEMPLATES[templateKey] }));
   return { hook, save, flash, setBusy };
 }
 
@@ -65,12 +67,45 @@ describe("useImport", () => {
     expect(types).toContain("h2");
   });
 
-  it("refuses to import less than two paragraphs", () => {
+  it("refuses to import less than two paragraphs, and says which problem it is", () => {
     const { hook, save } = setup("lab");
     act(() => hook.result.current.setRaw("Only a title"));
     act(() => hook.result.current.importPlain());
     expect(save).not.toHaveBeenCalled();
-    expect(hook.result.current.importNote).toMatch(/PASTE AN ARTICLE/);
+    expect(hook.result.current.importNote).toMatch(/AT LEAST TWO PARAGRAPHS/);
+    expect(hook.result.current.importErr).toBe(true);
+
+    act(() => hook.result.current.setRaw("   "));
+    act(() => hook.result.current.importPlain());
+    expect(hook.result.current.importNote).toMatch(/PASTE AN ARTICLE FIRST/);
+  });
+
+  it("offers UNDO after an import replaces the page", () => {
+    const { hook, save, flash } = setup("news");
+    act(() => hook.result.current.setRaw(MANUAL));
+    act(() => hook.result.current.importPlain());
+    expect(save).toHaveBeenCalled();
+    expect(flash).toHaveBeenCalledWith(expect.stringMatching(/^IMPORTED/), false, UNDO);
+  });
+
+  it("drops the AI's reply when the import is cancelled", async () => {
+    let answer;
+    window.claude = { complete: vi.fn(() => new Promise((resolve) => { answer = resolve; })) };
+    const { hook, save, flash, setBusy } = setup("lab");
+    act(() => hook.result.current.openImport());
+    act(() => hook.result.current.setRaw(MANUAL));
+    let running;
+    act(() => { running = hook.result.current.importAi(); });
+    act(() => hook.result.current.closeImport());
+    expect(hook.result.current.importOpen).toBe(false);
+    expect(setBusy).toHaveBeenLastCalledWith(false);
+    expect(flash).toHaveBeenCalledWith(expect.stringMatching(/IMPORT CANCELLED/));
+
+    await act(async () => {
+      answer(JSON.stringify({ headline: "Late", insertions: [] }));
+      await running;
+    });
+    expect(save).not.toHaveBeenCalled();
   });
 
   it("sends code to the AI as a summary and still imports it verbatim", async () => {

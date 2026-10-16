@@ -18,11 +18,31 @@ export function resolveAiConfig(ai) {
   return { provider, model: a.model || AI_MODELS[provider], key: a.key || "" };
 }
 
-// Messages worth showing the user; anything else gets the caller's fallback.
-export function aiErrorMessage(e) {
+const PROVIDER_NAMES = { anthropic: "Anthropic", openai: "OpenAI", gemini: "Gemini", ollama: "Ollama" };
+
+// A plain-language message naming the provider and the fix; null leaves the caller's fallback.
+export function aiErrorMessage(e, config) {
   const m = String((e && e.message) || e);
+  const status = e && e.status;
+  const provider = (e && e.provider) || PROVIDER_NAMES[config && config.provider] || "";
+  const who = (provider || "The model").toUpperCase();
+  const model = (config && config.model) || "";
   if (/EMPTY_REPLY/.test(m)) return "THE MODEL SENT BACK NOTHING — TRY AGAIN, OR PICK A NON-REASONING MODEL IN SETTINGS.";
-  return /api key|Settings|401|403|failed to fetch/i.test(m) ? m.toUpperCase().slice(0, 90) : null;
+  if (/No API key/i.test(m)) return "NO API KEY SET — OPEN SETTINGS TO ADD ONE.";
+  if (/built-in model/i.test(m)) return "THE BUILT-IN MODEL ONLY WORKS INSIDE THE DESIGN TOOL — CHOOSE A PROVIDER IN SETTINGS.";
+  if (status === 401 || status === 403 || /api.?key.{0,12}(not valid|invalid)|invalid.{0,12}api.?key|incorrect api key/i.test(m)) {
+    return who + " REJECTED THE API KEY — CHECK IT IN SETTINGS.";
+  }
+  if (/insufficient_quota|credit balance|billing/i.test(m)) return who + " SAYS THE ACCOUNT HAS NO CREDIT LEFT — CHECK YOUR BILLING.";
+  if (status === 429) return who + " IS RATE-LIMITING YOU — WAIT A MINUTE, THEN RETRY.";
+  if (status === 404 || (status === 400 && /model/i.test(m))) {
+    return who + " DOESN’T KNOW THE MODEL " + (model ? "“" + model + "” " : "") + "— CHECK THE NAME IN SETTINGS.";
+  }
+  if (status >= 500) return who + " IS BUSY OR DOWN — TRY AGAIN SHORTLY.";
+  if ((e && e.network) || /failed to fetch|networkerror|load failed/i.test(m)) {
+    return provider === "Ollama" ? "CAN’T REACH OLLAMA — IS IT RUNNING ON THIS MACHINE?" : "CAN’T REACH " + who + " — CHECK YOUR CONNECTION.";
+  }
+  return null;
 }
 
 function geminiUrl(config) {
@@ -40,7 +60,24 @@ function anthropicText(d) {
 }
 
 async function readError(label, r, length) {
-  return new Error(label + " " + r.status + " " + (await r.text()).slice(0, length));
+  const body = length ? " " + (await r.text()).slice(0, length) : "";
+  const err = new Error(label + " " + r.status + body);
+  err.status = r.status;
+  err.provider = label;
+  return err;
+}
+
+// Tag a failed connection with the provider, so the message can say who couldn't be reached.
+async function send(label, url, init) {
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    if (e && e.name === "AbortError") throw e;
+    const err = new Error(label + " unreachable: " + String((e && e.message) || e));
+    err.provider = label;
+    err.network = true;
+    throw err;
+  }
 }
 
 // Gemini 1.x and 2.0 models can't write more than 8,192 tokens and reject larger requests.
@@ -57,8 +94,9 @@ function replyText(text, label, stop) {
   return s;
 }
 
-// One call site for every model provider. `json` asks providers that support it for JSON output.
-export async function callAi(config, system, user, maxTokens, { json } = {}) {
+// One call site for every model provider. `json` asks providers that support it for JSON output;
+// `signal` cancels the request (the built-in model can't be cancelled, so callers drop its reply).
+export async function callAi(config, system, user, maxTokens, { json, signal } = {}) {
   if (config.provider === "builtin") {
     if (!hasBuiltinModel()) {
       throw new Error("The built-in model is only available inside the design tool. Open Settings and choose a provider.");
@@ -72,7 +110,7 @@ export async function callAi(config, system, user, maxTokens, { json } = {}) {
   }
 
   if (config.provider === "ollama") {
-    const r = await fetch("http://localhost:11434/api/chat", {
+    const r = await send("Ollama", "http://localhost:11434/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -81,8 +119,9 @@ export async function callAi(config, system, user, maxTokens, { json } = {}) {
         ...(json && { format: "json" }),
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
       }),
+      signal,
     });
-    if (!r.ok) throw new Error("Ollama " + r.status);
+    if (!r.ok) throw await readError("Ollama", r, 0);
     const d = await r.json();
     return replyText(d.message && d.message.content, "Ollama", d.done_reason);
   }
@@ -90,10 +129,11 @@ export async function callAi(config, system, user, maxTokens, { json } = {}) {
   if (!config.key) throw new Error("No API key set. Open Settings to add one.");
 
   if (config.provider === "anthropic") {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await send("Anthropic", "https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { ...ANTHROPIC_HEADERS, "x-api-key": config.key },
       body: JSON.stringify({ model: config.model, max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
+      signal,
     });
     if (!r.ok) throw await readError("Anthropic", r, 120);
     const d = await r.json();
@@ -105,10 +145,11 @@ export async function callAi(config, system, user, maxTokens, { json } = {}) {
     if (json) body.response_format = { type: "json_object" };
     if (/^(gpt-5|o\d)/.test(config.model)) body.max_completion_tokens = maxTokens;
     else body.max_tokens = maxTokens;
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    const r = await send("OpenAI", "https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer " + config.key },
       body: JSON.stringify(body),
+      signal,
     });
     if (!r.ok) throw await readError("OpenAI", r, 120);
     const d = await r.json();
@@ -117,7 +158,7 @@ export async function callAi(config, system, user, maxTokens, { json } = {}) {
   }
 
   if (config.provider === "gemini") {
-    const r = await fetch(geminiUrl(config), {
+    const r = await send("Gemini", geminiUrl(config), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -125,6 +166,7 @@ export async function callAi(config, system, user, maxTokens, { json } = {}) {
         contents: [{ parts: [{ text: user }] }],
         generationConfig: { maxOutputTokens: geminiMaxTokens(config.model, maxTokens), ...(json && { responseMimeType: "application/json" }) },
       }),
+      signal,
     });
     if (!r.ok) throw await readError("Gemini", r, 120);
     const d = await r.json();
@@ -135,8 +177,8 @@ export async function callAi(config, system, user, maxTokens, { json } = {}) {
 }
 
 // The parsed JSON reply; one that can't be read is logged so it can be looked at.
-export async function callAiJson(config, system, user, maxTokens) {
-  const reply = await callAi(config, system, user, maxTokens, { json: true });
+export async function callAiJson(config, system, user, maxTokens, { signal } = {}) {
+  const reply = await callAi(config, system, user, maxTokens, { json: true, signal });
   try {
     return parseJsonReply(reply);
   } catch (e) {
@@ -165,7 +207,7 @@ export async function transcribePdf(config, file) {
   const data = await readAsBase64(file);
 
   if (config.provider === "anthropic") {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await send("Anthropic", "https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { ...ANTHROPIC_HEADERS, "x-api-key": config.key, "anthropic-beta": "pdfs-2024-09-25" },
       body: JSON.stringify({
@@ -184,11 +226,11 @@ export async function transcribePdf(config, file) {
     return anthropicText(await r.json());
   }
 
-  const r = await fetch(geminiUrl(config), {
+  const r = await send("Gemini", geminiUrl(config), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      contents: [{ parts: [{ inline_data: { mime_type: "application/pdf", data } }, { text: PDF_TRANSCRIBE_PROMPT }] }],
+      contents: [{ parts: [{ inline_data:{ mime_type: "application/pdf", data } }, { text: PDF_TRANSCRIBE_PROMPT }] }],
       generationConfig: { maxOutputTokens: geminiMaxTokens(config.model, 16000) },
     }),
   });

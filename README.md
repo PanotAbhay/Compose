@@ -16,6 +16,7 @@ Compose is a prototype from the [QMUL AI Hackathon](https://qmul-ai-hackathon.de
 - **Tabs.** Each tab is one document with its own template, content, fonts and undo history. Tabs autosave to `localStorage`.
 - **Web and print layouts.** Choose one continuous page or A4 sheets with one or two columns. Paragraphs split at line breaks, headings stay with the text that follows, and figures float to the next column, as in LaTeX.
 - **Export.** HTML, PDF, copied markup and, for the LaTeX template, a `.tex` project for Overleaf.
+- **Keyboard and undo.** Press **?** for the shortcut list. Select a block, then press arrow keys to move between blocks, Ctrl+Shift+↑/↓ to move it, Ctrl+D to duplicate it and Delete to remove it. Deleting, closing a tab, importing and font presets show an **UNDO** link in the status bar.
 
 ![The LaTeX paper template in two columns](docs/screenshots/07-latex.png)
 

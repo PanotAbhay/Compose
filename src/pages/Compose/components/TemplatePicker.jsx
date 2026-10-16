@@ -1,4 +1,5 @@
 import { TEMPLATES } from "../../../data/index.js";
+import { useDialog } from "../../../hooks/useDialog.js";
 import "./TemplatePicker.css";
 
 function previewHeadline(h1) {
@@ -20,16 +21,19 @@ function TemplatePreview({ template }) {
 }
 
 export function TemplatePicker({ canClose, onPick, onClose }) {
+  // With no tab open there is nothing behind the picker to go back to, so Escape does nothing.
+  const ref = useDialog({ onClose: canClose ? onClose : null });
+
   return (
     <div className="template-overlay">
-      <div className="template-window">
+      <div ref={ref} className="template-window" role="dialog" aria-modal="true" aria-labelledby="template-title" tabIndex={-1}>
         <div className="template-head">
           <div>
             <div className="template-kicker">NEW DOCUMENT</div>
-            <div className="template-title">Choose a template</div>
+            <div className="template-title" id="template-title">Choose a template</div>
             <div className="template-desc">The template sets the look, the elements you can add and how the AI formats an import, and stays fixed for this document. It opens in a new tab with a starter page to edit.</div>
           </div>
-          {canClose && <button className="template-close" title="Close" onClick={onClose}><span className="ms template-close-icon">close</span></button>}
+          {canClose && <button className="template-close" title="Close" aria-label="Close" onClick={onClose}><span className="ms template-close-icon" aria-hidden="true">close</span></button>}
         </div>
         <div className="template-grid">
           {Object.values(TEMPLATES).map((t) => (
@@ -37,7 +41,7 @@ export function TemplatePicker({ canClose, onPick, onClose }) {
               <TemplatePreview template={t} />
               <div className="template-card-body">
                 <div className="template-card-name">
-                  <span className="ms template-card-icon">{t.icon}</span>
+                  <span className="ms template-card-icon" aria-hidden="true">{t.icon}</span>
                   {t.label}
                 </div>
                 <div className="template-card-desc">{t.description}</div>

@@ -65,6 +65,39 @@ export function moveSection(blocks, id, index) {
   return cur;
 }
 
+const isHeadingBlock = (b) => HEADING_TYPES.includes(b.type) || CHAPTER_TYPES.includes(b.type);
+
+// The headline and standfirst at the top of the page, which nothing moves above.
+function mastheadEnd(blocks) {
+  let i = 0;
+  while (i < blocks.length && (blocks[i].type === "h1" || blocks[i].type === "standfirst")) i += 1;
+  return i;
+}
+
+// One step up (dir -1) or down (dir 1), for moving blocks from the keyboard. A heading takes its
+// section along and steps over a whole neighbouring section rather than splitting it.
+// Returns null when the block can't go further.
+export function nudgeBlock(blocks, id, dir) {
+  const from = blocks.findIndex((b) => b.id === id);
+  if (from < 0) return null;
+  const end = sectionEnd(blocks, from);
+  const heading = isHeadingBlock(blocks[from]);
+  if (dir > 0) {
+    if (end >= blocks.length) return null;
+    return moveSection(blocks, id, heading && isHeadingBlock(blocks[end]) ? sectionEnd(blocks, end) : end + 1);
+  }
+  let to = from - 1;
+  if (heading) {
+    for (let p = from - 1; p >= 0; p--) {
+      if (!isHeadingBlock(blocks[p])) continue;
+      if (sectionEnd(blocks, p) === from) to = p;
+      break;
+    }
+  }
+  if (to < mastheadEnd(blocks)) return null;
+  return moveSection(blocks, id, to);
+}
+
 // Read a prose field back into one block per paragraph.
 export function mergeProse(blocks, ids, node) {
   const ps = Array.from(node.children).filter((n) => n.tagName === "P");

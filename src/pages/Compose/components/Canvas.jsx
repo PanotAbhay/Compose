@@ -365,7 +365,7 @@ export function Canvas({
       data-drop-tail=""
       className={`canvas-tail${drop.index === blocks.length ? " canvas-tail--active" : ""}${print ? " canvas-tail--print" : ""}`}
     >
-      <span className="canvas-tail-label">Drag elements here</span>
+      <span className="canvas-tail-label">Drag elements here · press ? for shortcuts</span>
     </div>
   );
 

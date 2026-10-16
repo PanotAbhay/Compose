@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { articleHtml } from "../utils/exportHtml.js";
 import { buildDocument, documentTitle } from "../utils/exportDocument.js";
 import { fontLinks } from "../utils/fonts.js";
@@ -16,6 +16,9 @@ export function useExport({ docTitle, fonts, flash }) {
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
   const busyRef = useRef(false);
+  const copiedTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(copiedTimerRef.current), []);
 
   async function run(work, failMsg) {
     const node = articleNode();
@@ -38,10 +41,15 @@ export function useExport({ docTitle, fonts, flash }) {
     const html = articleHtml(node, fontLinks(fonts));
     function done() {
       setExported(true);
-      setTimeout(() => setExported(false), 1600);
+      flash("COPIED THE ARTICLE HTML");
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setExported(false), 1600);
     }
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(html).then(done, done);
-    else done();
+    function failed() {
+      flash("COULDN’T COPY — THE BROWSER BLOCKED THE CLIPBOARD. USE DOWNLOAD HTML INSTEAD", true);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(html).then(done, failed);
+    else failed();
   }
 
   function downloadHtml() {

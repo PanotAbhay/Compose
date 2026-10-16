@@ -1,4 +1,5 @@
-import { TEXTISH_TYPES, HEADING_TYPES, CHAPTER_TYPES, IMAGE_TYPES, TEXT_TYPE_OPTIONS } from "../../../data/index.js";
+import { TEXTISH_TYPES, HEADING_TYPES, CHAPTER_TYPES, IMAGE_TYPES, TEXT_TYPE_OPTIONS, blockLabel } from "../../../data/index.js";
+import { pressable, shortcutLabel } from "../../../utils/dom.js";
 import { TextBlock } from "./blocks/TextBlock.jsx";
 import { BylineBlock } from "./blocks/BylineBlock.jsx";
 import { QuoteBlock } from "./blocks/QuoteBlock.jsx";
@@ -83,19 +84,19 @@ function SelectionHandles() {
 
 function BlockToolbar({ block, allowed, isHeading, sectionSize, onPatch, onDeleteSection, onDuplicate }) {
   return (
-    <div data-chrome="" className="block-toolbar">
+    <div data-chrome="" className="block-toolbar" role="toolbar" aria-label="Block">
       {TEXTISH_TYPES.includes(block.type) && (
-        <select className="block-type-select" value={block.type} onChange={(e) => { const v = e.target.value; onPatch((x) => changeType(x, v)); }}>
+        <select className="block-type-select" aria-label="Block type" value={block.type} onChange={(e) => { const v = e.target.value; onPatch((x) => changeType(x, v)); }}>
           {TEXT_TYPE_OPTIONS.filter((o) => o.value === block.type || o.value === "h1" || o.value === "standfirst" || allowed.includes(o.value)).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       )}
       {isHeading && (
         <>
           <span className="block-section-label">{sectionSize > 1 ? "SECTION · " + sectionSize + " BLOCKS" : "SECTION"}</span>
-          <button className="block-toolbar-btn" onClick={onDeleteSection}><span className="ms block-toolbar-icon">delete_sweep</span>Delete section</button>
+          <button className="block-toolbar-btn" title="Delete this heading and everything under it" onClick={onDeleteSection}><span className="ms block-toolbar-icon" aria-hidden="true">delete_sweep</span>Delete section</button>
         </>
       )}
-      <button className="block-toolbar-btn" onClick={onDuplicate}><span className="ms block-toolbar-icon">content_copy</span>Duplicate</button>
+      <button className="block-toolbar-btn" title={"Duplicate (" + shortcutLabel("Ctrl+D") + ")"} onClick={onDuplicate}><span className="ms block-toolbar-icon" aria-hidden="true">content_copy</span>Duplicate</button>
     </div>
   );
 }
@@ -142,6 +143,7 @@ export function BlockFrame({
       data-unit={block.id}
       style={wrapStyle(selected, inLive, columnStyle(block.type, span))}
       onClick={(e) => { e.stopPropagation(); onSelect(block.id, index); }}
+      onFocus={() => { if (!selected) onSelect(block.id, index); }}
     >
       {selected && <SelectionHandles />}
 
@@ -150,14 +152,14 @@ export function BlockFrame({
           <div
             className="block-chrome-btn block-chrome-btn--drag"
             draggable="true"
-            title={isHeading && sectionSize > 1 ? "Drag to move this whole section (" + sectionSize + " blocks)" : "Drag to reorder"}
+            title={(isHeading && sectionSize > 1 ? "Drag to move this whole section (" + sectionSize + " blocks)" : "Drag to reorder") + " · or select it and press " + shortcutLabel("Ctrl+Shift+↑/↓")}
             onDragStart={(e) => onMoveStart(e, block.id, isHeading && sectionSize > 1)}
             onDragEnd={onDragEnd}
           >
-            <span className="ms block-chrome-icon">{isHeading ? "swap_vert" : "drag_indicator"}</span>
+            <span className="ms block-chrome-icon" aria-hidden="true">{isHeading ? "swap_vert" : "drag_indicator"}</span>
           </div>
-          <div className="block-chrome-btn" title="Delete" onClick={stop(() => onDelete(block.id))}>
-            <span className="ms block-chrome-icon--sm">delete</span>
+          <div className="block-chrome-btn" title="Delete" aria-label={"Delete " + blockLabel(block.type).toLowerCase()} onClick={stop(() => onDelete(block.id))} {...pressable(stop(() => onDelete(block.id)))}>
+            <span className="ms block-chrome-icon--sm" aria-hidden="true">delete</span>
           </div>
         </div>
       )}

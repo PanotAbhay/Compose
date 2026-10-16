@@ -2,13 +2,14 @@ import { useState } from "react";
 import { callAiJson, aiErrorMessage } from "../utils/ai.js";
 import { elementToBlock, quotedInSource } from "../utils/blocks.js";
 import { elementPrompt } from "../utils/prompts.js";
+import { blockLabel } from "../data/index.js";
 
 function plainText(html) {
   return String(html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 // Replace a freshly dropped template block with one the AI builds from nearby paragraphs.
-export function useAiFill({ getBlocks, save, flash, aiConfig, rules }) {
+export function useAiFill({ getBlocks, save, flash, undoOffer, aiConfig, rules }) {
   const [building, setBuilding] = useState([]);
 
   async function fillFromText(blockId, type, sourceIds) {
@@ -21,7 +22,7 @@ export function useAiFill({ getBlocks, save, flash, aiConfig, rules }) {
 
     const count = sourceIds.length;
     setBuilding((ids) => [...ids, blockId]);
-    flash("BUILDING " + type.toUpperCase() + " FROM " + (count > 1 ? count + " PARAGRAPHS" : "THE PARAGRAPH") + "…");
+    flash("BUILDING " + blockLabel(type).toUpperCase() + " FROM " + (count > 1 ? count + " PARAGRAPHS" : "THE PARAGRAPH") + "…");
 
     try {
       const element = await callAiJson(aiConfig, elementPrompt(count, type, rules), text, count > 1 ? 4000 : 1400);
@@ -36,9 +37,13 @@ export function useAiFill({ getBlocks, save, flash, aiConfig, rules }) {
       // The editor may have deleted the placeholder while the model was working.
       if (!cur.some((b) => b.id === blockId)) return;
       save(cur.map((b) => (b.id === blockId ? { ...blk, id: blockId } : b)));
-      flash("BUILT " + blk.type.toUpperCase() + " FROM THE TEXT — CTRL+Z FOR THE BLANK ONE");
+      const built = "BUILT " + blockLabel(blk.type).toUpperCase() + " FROM THE TEXT";
+      if (undoOffer) flash(built, false, undoOffer());
+      else flash(built + " — CTRL+Z FOR THE BLANK ONE");
     } catch (e) {
-      flash(aiErrorMessage(e) || "COULDN’T BUILD IT FROM THE TEXT — FILL IN THE BLANK ONE BY HAND.", true);
+      console.error("[Compose] AI fill failed", e);
+      const unusable = e instanceof SyntaxError ? "THE MODEL’S REPLY WASN’T USABLE — TRY AGAIN, OR FILL IN THE BLANK ONE BY HAND." : null;
+      flash(unusable || aiErrorMessage(e, aiConfig) || "COULDN’T BUILD IT FROM THE TEXT — FILL IN THE BLANK ONE BY HAND.", true);
     } finally {
       setBuilding((ids) => ids.filter((id) => id !== blockId));
     }

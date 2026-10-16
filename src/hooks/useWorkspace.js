@@ -82,18 +82,30 @@ function lightCopy(workspace) {
 
 export function useWorkspace(flash) {
   const [workspace, setWorkspace] = useState(loadWorkspace);
+  // "saved", "partial" (text saved, photos dropped) or "failed": what the save indicator shows.
+  const [saveState, setSaveState] = useState("saved");
   const photoWarnRef = useRef(false);
+  const failWarnRef = useRef(false);
 
   useEffect(() => {
     if (writeStorage(STORAGE_KEYS.workspace, JSON.stringify(workspace))) {
       photoWarnRef.current = false;
+      failWarnRef.current = false;
+      setSaveState("saved");
       return;
     }
     const { light, dropped } = lightCopy(workspace);
     if (!writeStorage(STORAGE_KEYS.workspace, JSON.stringify(light))) {
-      flash("AUTOSAVE FAILED — COPY YOUR HTML BEFORE RELOADING", true);
+      setSaveState("failed");
+      // Warn once; the save indicator keeps showing it, instead of a flash on every keystroke.
+      if (!failWarnRef.current) {
+        failWarnRef.current = true;
+        flash("AUTOSAVE FAILED — BROWSER STORAGE IS FULL. DOWNLOAD YOUR HTML BEFORE RELOADING", true);
+      }
       return;
     }
+    failWarnRef.current = false;
+    setSaveState(dropped ? "partial" : "saved");
     if (dropped && !photoWarnRef.current) {
       photoWarnRef.current = true;
       flash(dropped + " PHOTO" + (dropped > 1 ? "S" : "") + " TOO LARGE TO AUTOSAVE — RE-ADD AFTER RELOAD", true);
@@ -124,12 +136,24 @@ export function useWorkspace(flash) {
     });
   }
 
+  // Undo for closing a tab: put the document back where it was and make it active.
+  function reopenDoc(doc, index) {
+    setWorkspace((ws) => {
+      if (ws.docs.some((d) => d.id === doc.id)) return ws;
+      const docs = ws.docs.slice();
+      docs.splice(Math.max(0, Math.min(docs.length, index)), 0, doc);
+      return { docs, activeId: doc.id };
+    });
+  }
+
   return {
     docs: workspace.docs,
     active: workspace.docs.find((d) => d.id === workspace.activeId) || null,
+    saveState,
     selectDoc: (id) => setWorkspace((ws) => ({ ...ws, activeId: id })),
     createDoc,
     updateDoc,
     closeDoc,
+    reopenDoc,
   };
 }

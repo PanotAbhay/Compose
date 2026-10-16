@@ -532,7 +532,12 @@ a:hover { color: var(--red); }
   line-height: 0.72; font-weight: 600; color: var(--ink); margin: 6px 12px 0 0;
 }
 .nt-blk [data-chrome] { opacity: 0; transition: opacity 0.12s ease; }
-.nt-blk:hover [data-chrome], .nt-blk[data-sel="1"] [data-chrome] { opacity: 1; }
+.nt-blk:hover [data-chrome], .nt-blk[data-sel="1"] [data-chrome], .nt-blk:focus-within [data-chrome] { opacity: 1; }
+/* Read by screen readers, never drawn (the status note's live region). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
 ::selection { background: var(--red); color: var(--on-accent); }
 .ms {
   font-family: 'Material Symbols Outlined';

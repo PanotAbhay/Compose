@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pressable } from "../../../../utils/dom.js";
 import { highlightLines, CODE_LANGS } from "../../../../utils/highlight.js";
 import { EditableText } from "./EditableText.jsx";
 import { MONO_OVERLINE } from "./articleStyles.js";
@@ -91,7 +92,12 @@ export function CodeBlock({ block, theme, slice, onPatch }) {
           </select>
         )}
         <div style={{ ...BOX, ...t.wrap }}>
-          <div data-split-lines="" style={{ ...LINES, ...t.text }} onClick={() => setEditing(true)}>
+          <div
+            data-split-lines=""
+            style={{ ...LINES, ...t.text }}
+            onClick={() => setEditing(true)}
+            {...(!editing && pressable(() => setEditing(true)))}
+          >
             {editing ? (
               <textarea
                 autoFocus

@@ -31,6 +31,11 @@ export function cleanArticle(node) {
     n.removeAttribute("data-ph");
   });
   c.querySelectorAll("select,button").forEach((n) => n.remove());
+  // Keyboard access for editing (an empty photo slot, a code listing) means nothing on the page.
+  c.querySelectorAll('[role="button"]').forEach((n) => {
+    n.removeAttribute("role");
+    n.removeAttribute("tabindex");
+  });
   const last = c.lastElementChild;
   if (last && /drag elements here/i.test(last.textContent)) last.remove();
   c.querySelectorAll("[data-rw]").forEach((n) => n.removeAttribute("data-rw"));

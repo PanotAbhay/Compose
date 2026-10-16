@@ -9,10 +9,10 @@ const WEIGHT_OPTIONS = WEIGHTS.map((w) => ({ id: w.value, label: w.label }));
 function Segmented({ label, options, value, onChange }) {
   return (
     <div className="fonts-row">
-      <span className="modal-label">{label}</span>
-      <div className="fonts-seg">
+      <span className="modal-label" aria-hidden="true">{label}</span>
+      <div className="fonts-seg" role="group" aria-label={label.toLowerCase()}>
         {options.map((o) => (
-          <button key={o.id} className={"fonts-seg-btn" + (o.id === value ? " fonts-seg-btn--on" : "")} onClick={() => onChange(o.id)}>
+          <button key={o.id} className={"fonts-seg-btn" + (o.id === value ? " fonts-seg-btn--on" : "")} aria-pressed={o.id === value} onClick={() => onChange(o.id)}>
             {o.label}
           </button>
         ))}
@@ -28,11 +28,11 @@ function LevelSection({ level, label, choice, open, onToggle, setLevel }) {
       <button className="fonts-section-head" onClick={onToggle} aria-expanded={open}>
         <span className="modal-label fonts-section-name">{label.toUpperCase()}</span>
         <span className="fonts-section-font">{fontLabel(choice.font)}</span>
-        <span className="ms fonts-section-chevron">expand_more</span>
+        <span className="ms fonts-section-chevron" aria-hidden="true">expand_more</span>
       </button>
       {open && (
         <div className="fonts-section-body">
-          <select className="modal-input settings-select" value={choice.font} onChange={(e) => set({ font: e.target.value })}>
+          <select className="modal-input settings-select" aria-label={label + " font"} value={choice.font} onChange={(e) => set({ font: e.target.value })}>
             {FONT_OPTIONS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
           <Segmented label="SIZE" options={SIZE_STEPS} value={choice.size} onChange={(size) => set({ size })} />
@@ -58,10 +58,10 @@ export function FontsPanel({ fonts, setLevel, applyPreset, reset, templatePreset
       </div>
       <div className="settings-body">
         <div className="settings-field">
-          <label className="modal-label">PRESET FONT SYSTEM</label>
-          <div className="fonts-presets">
+          <span className="modal-label" id="fonts-presets-label">PRESET FONT SYSTEM</span>
+          <div className="fonts-presets" role="group" aria-labelledby="fonts-presets-label">
             {presets.map((p) => (
-              <button key={p.id} className={"fonts-chip" + (fonts.preset === p.id ? " fonts-chip--on" : "")} onClick={() => applyPreset(p.id)}>
+              <button key={p.id} className={"fonts-chip" + (fonts.preset === p.id ? " fonts-chip--on" : "")} aria-pressed={fonts.preset === p.id} onClick={() => applyPreset(p.id)}>
                 <span className="fonts-chip-name">{p.id === templatePreset ? p.label + " (template)" : p.label}</span>
                 <span className="fonts-chip-note">{p.note}</span>
               </button>

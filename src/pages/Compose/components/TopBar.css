@@ -68,6 +68,19 @@
   letter-spacing: 0.06em;
 }
 
+.top-bar-note-action {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: #F2EFE9;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
 .top-bar-saved {
   display: flex;
   align-items: center;
@@ -83,6 +96,11 @@
   font-family: var(--font-sans);
   font-size: 13px;
   color: rgba(242,239,233,0.45);
+}
+
+.top-bar-saved--warn .top-bar-saved-icon,
+.top-bar-saved--warn .top-bar-saved-label {
+  color: #E8836F;
 }
 
 .top-bar-zoom {

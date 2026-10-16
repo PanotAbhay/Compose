@@ -135,6 +135,25 @@ See [CLAUDE.md](CLAUDE.md) for the architecture notes and coding style.
 
 ## Sharing the app
 
+### Cloudflare Pages (permanent, free)
+
+The app has no backend, so Cloudflare Pages hosts it for free and keeps it online without your machine. Cloudflare builds the site from this repo on every push.
+
+1. Sign up at dash.cloudflare.com. The free plan needs no card.
+2. Open **Workers & Pages → Create**, choose the **Pages** tab, then **Import an existing Git repository**. Connect GitHub and pick `PanotAbhay/Compose`.
+3. Use these settings, then click **Save and Deploy**:
+
+| Setting | Value |
+|---|---|
+| Production branch | The branch the public link shows, e.g. `main` |
+| Framework preset | React (Vite) |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+
+The site appears at `https://<project>.pages.dev`. Each push to the production branch redeploys it, and other branches get preview links at `https://<branch>.<project>.pages.dev`. To change the branch, open **Settings → Builds & deployments**. `.nvmrc` sets the Node version for the build.
+
+### Tunnels (from your machine)
+
 `npm run share` serves the built app at `http://127.0.0.1:4173`. Put a tunnel in front of it to get a public HTTPS link. The link works only while your machine is awake and both commands run.
 
 **ngrok (free account)**
@@ -154,10 +173,10 @@ On the free plan, visitors click through an ngrok warning page once. Monthly ban
 | localtunnel | `npx localtunnel --port 4173` | Nothing to install. Less reliable. |
 | Pinggy | `ssh -p 443 -R0:127.0.0.1:4173 a.pinggy.io` | Nothing to install. Less reliable. |
 
-**Static hosts** keep the app online without your machine, because the app has no backend:
+**Other static hosts** also keep the app online without your machine:
 
 - **Netlify Drop**: run `npm run build`, then drag `dist/` onto app.netlify.com/drop.
-- **Vercel, Netlify or Cloudflare Pages**: import this repo with build command `npm run build` and output directory `dist`.
+- **Vercel or Netlify**: import this repo with build command `npm run build` and output directory `dist`.
 - **GitHub Pages**: also set `base: "/Compose/"` in `vite.config.js` and `basename={import.meta.env.BASE_URL}` on `BrowserRouter` in `main.jsx`.
 
 List a tunnel host in `server.allowedHosts` in `vite.config.js`. Without it, Vite answers "Blocked request". Visitors enter their own AI key in Settings. The Ollama provider calls Ollama on the visitor's machine, so set `OLLAMA_ORIGINS` there to the public URL.

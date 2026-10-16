@@ -24,8 +24,8 @@ Compose is a prototype from the [QMUL AI Hackathon](https://qmul-ai-hackathon.de
 You need [Node.js](https://nodejs.org) 18 or later.
 
 ```
-git clone https://github.com/PanotAbhay/aihackathon.git
-cd aihackathon
+git clone https://github.com/PanotAbhay/Compose.git
+cd Compose
 npm install
 npm run dev
 ```
@@ -157,7 +157,7 @@ On the free plan, visitors click through an ngrok warning page once. Monthly ban
 
 - **Netlify Drop**: run `npm run build`, then drag `dist/` onto app.netlify.com/drop.
 - **Vercel, Netlify or Cloudflare Pages**: import this repo with build command `npm run build` and output directory `dist`.
-- **GitHub Pages**: also set `base: "/aihackathon/"` in `vite.config.js` and `basename={import.meta.env.BASE_URL}` on `BrowserRouter` in `main.jsx`.
+- **GitHub Pages**: also set `base: "/Compose/"` in `vite.config.js` and `basename={import.meta.env.BASE_URL}` on `BrowserRouter` in `main.jsx`.
 
 List a tunnel host in `server.allowedHosts` in `vite.config.js`. Without it, Vite answers "Blocked request". Visitors enter their own AI key in Settings. The Ollama provider calls Ollama on the visitor's machine, so set `OLLAMA_ORIGINS` there to the public URL.
 

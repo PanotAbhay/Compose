@@ -2,6 +2,8 @@
 
 **Import an article, let AI structure it, then edit it on the page.**
 
+**Try it:** [compose.panotabhay.workers.dev](https://compose.panotabhay.workers.dev/)
+
 ![Compose editing a news article](docs/screenshots/02-editor-news.png)
 
 Compose is a visual feature builder that runs in the browser. Writers often have the text of an article but no easy way to turn it into a designed page. Compose reads a `.docx`, a PDF or plain text and asks an AI model to split it into blocks. You then drag elements from a palette, reorder blocks, drop in photos and format text in place.
@@ -135,22 +137,24 @@ See [CLAUDE.md](CLAUDE.md) for the architecture notes and coding style.
 
 ## Sharing the app
 
-### Cloudflare Pages (permanent, free)
+### Cloudflare Workers (permanent, free)
 
-The app has no backend, so Cloudflare Pages hosts it for free and keeps it online without your machine. Cloudflare builds the site from this repo on every push.
+The live site, [compose.panotabhay.workers.dev](https://compose.panotabhay.workers.dev/), is served by Cloudflare from `main`. The app has no backend, so the free plan hosts it and keeps it online without your machine. Every push to `main` rebuilds and redeploys it.
+
+`wrangler.jsonc` tells Cloudflare to serve the built `dist/` folder as static files, and `.nvmrc` sets the Node version for the build. To set up a copy on your own account:
 
 1. Sign up at dash.cloudflare.com. The free plan needs no card.
-2. Open **Workers & Pages → Create**, choose the **Pages** tab, then **Import an existing Git repository**. Connect GitHub and pick `PanotAbhay/Compose`.
-3. Use these settings, then click **Save and Deploy**:
+2. Open **Workers & Pages → Create → Import a repository**. Connect GitHub and pick the repo.
+3. Use these settings, then deploy:
 
 | Setting | Value |
 |---|---|
-| Production branch | The branch the public link shows, e.g. `main` |
-| Framework preset | React (Vite) |
+| Project name | `compose`, matching `name` in `wrangler.jsonc` |
 | Build command | `npm run build` |
-| Build output directory | `dist` |
+| Deploy command | `npx wrangler deploy` (the default) |
+| Path | `/` |
 
-The site appears at `https://<project>.pages.dev`. Each push to the production branch redeploys it, and other branches get preview links at `https://<branch>.<project>.pages.dev`. To change the branch, open **Settings → Builds & deployments**. `.nvmrc` sets the Node version for the build.
+The site appears at `https://compose.<your-subdomain>.workers.dev`, shown on the Worker's overview page. Cloudflare builds `main` unless you pick another branch under **Settings → Build → Branch control**. Without `wrangler.jsonc` on that branch, the deploy fails with "The version of Vite used in the project cannot be automatically configured".
 
 ### Tunnels (from your machine)
 

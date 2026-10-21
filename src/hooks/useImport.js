@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { STORAGE_KEYS, TEMPLATES } from "../data/index.js";
 import { readStorage, writeStorage } from "../utils/storage.js";
-import { nid, plainParas, blocksFromPlan, paraBlocks, splitHeadline, promptPara } from "../utils/blocks.js";
+import { headerBlocks, plainParas, blocksFromPlan, paraBlocks, splitHeadline, promptPara } from "../utils/blocks.js";
 import { readDocx, readPdf, pickFile } from "../utils/fileReaders.js";
 import { callAiJson, aiErrorMessage, transcribePdf } from "../utils/ai.js";
 import { importPrompt } from "../utils/prompts.js";
@@ -99,7 +99,7 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
     if (paras.length < 2) { failEmpty(); return; }
     const { headline, rest: body } = splitHeadline(paras);
     // A leading "By …" line is the byline, not the opening paragraph.
-    let author = "Staff Correspondent";
+    let author = "";
     const first = body.length ? String(body[0]).trim() : "";
     if (/^by\s+\S/i.test(first) && first.length < 80) {
       author = first.replace(/^by\s+/i, "").trim();
@@ -108,12 +108,7 @@ export function useImport({ busy, setBusy, save, flash, setNoteErr, aiConfig, te
     const blocks = paraBlocks(body, { allowed: template.blocks, numbered, images, lists: true }).filter(Boolean);
     const lede = blocks.find((b) => b.type === "body");
     if (lede && template.blocks.includes("dropcap")) lede.type = "dropcap";
-    save([
-      { id: nid(), type: "h1", html: headline },
-      { id: nid(), type: "standfirst", html: "" },
-      { id: nid(), type: "byline", a: author, b: "Nutshell Today" },
-      ...blocks,
-    ]);
+    save([...Object.values(headerBlocks(headline, "", author)), ...blocks]);
     setImportOpen(false);
     setImportNote("");
     flash("IMPORTED " + paras.length + " PARAGRAPHS");

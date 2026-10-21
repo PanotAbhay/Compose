@@ -1,5 +1,6 @@
 import { EditableText } from "./EditableText.jsx";
 import { rotatedLabels, textEm } from "../../../../utils/plotLabels.js";
+import { parseValue } from "./articleStyles.js";
 
 // pgfplots' default look, for the LaTeX template: a full axis box with inward ticks, numeric
 // y ticks, Computer Modern labels and the default blue plot style. Values, tick labels and the
@@ -47,7 +48,7 @@ export function PgfPlot({ kind, block, columns = 1, onPatch }) {
   const n = Math.max(1, rows.length);
   const { ticks, ymax } = niceTicks(Math.max(0, ...rows.map((r) => Number(r.value) || 0)));
   const yAt = (v) => Math.max(0, Math.min(1, (Number(v) || 0) / ymax));
-  const setValue = (i) => (v) => onPatch((x) => { x.bars[i].value = parseFloat(String(v).replace(/[^\d.-]/g, "")) || 0; });
+  const setValue = (i) => (v) => onPatch((x) => { x.bars[i].value = parseValue(v, true); });
   const setLabel = (i) => (v) => onPatch((x) => { x.bars[i].label = v; });
   // Long labels rotate like pgfplots' "x tick label style={rotate=45, anchor=east}" instead of colliding.
   const rotate = rotatedLabels(rows, { kind, columns });

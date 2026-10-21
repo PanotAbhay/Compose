@@ -34,6 +34,11 @@ export const MONO_LABEL = {
   letterSpacing: "var(--mono-label-ls)",
 };
 
+// A number typed into a chart, ignoring units and other characters ("12.5%" → 12.5).
+export function parseValue(v, signed = false) {
+  return parseFloat(String(v).replace(signed ? /[^\d.-]/g : /[^\d.]/g, "")) || 0;
+}
+
 export function maxValue(rows) {
   const max = Math.max(0, ...rows.map((r) => r.value));
   return max <= 0 ? 100 : max;

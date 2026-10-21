@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   sectionEnd, moveSection, moveBlock, mergeProse, plainParas, paraBlocks, splitHeadline, promptPara, isMarked,
   inlineHtml, inlineCodeHtml, escapeHtml, elementToBlock, blocksFromPlan, parseJsonReply, countWords, createStarterBlocks,
+  cloneBlock, headerBlocks,
 } from "./blocks.js";
 import { TEMPLATES, TEMPLATE_KEYS } from "../data/index.js";
 
@@ -301,5 +302,28 @@ describe("misc", () => {
       expect(new Set(blocks.map((x) => x.id)).size).toBe(blocks.length);
       blocks.forEach((x) => expect(TEMPLATES[key].blocks.concat(["h1", "standfirst", "dropcap", "byline"])).toContain(x.type));
     });
+  });
+});
+
+describe("cloneBlock", () => {
+  it("copies nested arrays and objects so patches never reach the original", () => {
+    const original = { id: "x", type: "table", cells: [["a", "b"]], frames: [{ x: 1 }] };
+    const copy = cloneBlock(original);
+    copy.cells[0][0] = "z";
+    copy.frames[0].x = 9;
+    expect(original.cells[0][0]).toBe("a");
+    expect(original.frames[0].x).toBe(1);
+    expect(copy).not.toBe(original);
+  });
+});
+
+describe("headerBlocks", () => {
+  it("fills the byline with defaults when no author or desk is given", () => {
+    const { h1, standfirst, byline } = headerBlocks("Title", "Sub");
+    expect([h1.type, h1.html, standfirst.type, standfirst.html]).toEqual(["h1", "Title", "standfirst", "Sub"]);
+    expect(byline.type).toBe("byline");
+    expect(byline.a).toBeTruthy();
+    expect(byline.b).toBe("Nutshell Today");
+    expect(new Set([h1.id, standfirst.id, byline.id]).size).toBe(3);
   });
 });

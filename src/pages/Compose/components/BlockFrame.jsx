@@ -1,4 +1,4 @@
-import { TEXTISH_TYPES, HEADING_TYPES, CHAPTER_TYPES, IMAGE_TYPES, TEXT_TYPE_OPTIONS } from "../../../data/index.js";
+import { TEXTISH_TYPES, SECTION_TYPES, IMAGE_TYPES, TEXT_TYPE_OPTIONS } from "../../../data/index.js";
 import { TextBlock } from "./blocks/TextBlock.jsx";
 import { BylineBlock } from "./blocks/BylineBlock.jsx";
 import { QuoteBlock } from "./blocks/QuoteBlock.jsx";
@@ -56,7 +56,7 @@ const KEEP_TOGETHER = ["quote", "image", "pair", "gallery", "stats", "table", "c
 
 function columnStyle(type, span) {
   if (span) return { columnSpan: "all" };
-  if (type === "h2" || type === "h3" || CHAPTER_TYPES.includes(type)) return { breakInside: "avoid", breakAfter: "avoid" };
+  if (SECTION_TYPES.includes(type)) return { breakInside: "avoid", breakAfter: "avoid" };
   return KEEP_TOGETHER.includes(type) ? { breakInside: "avoid" } : {};
 }
 
@@ -124,7 +124,7 @@ export function BlockFrame({
   onDragEnd,
   onNotice,
 }) {
-  const isHeading = HEADING_TYPES.includes(block.type) || CHAPTER_TYPES.includes(block.type);
+  const isHeading = SECTION_TYPES.includes(block.type);
   const showChrome = block.type !== "h1" && block.type !== "standfirst";
   const Body = bodyFor(block.type);
 

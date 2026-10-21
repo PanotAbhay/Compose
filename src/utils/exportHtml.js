@@ -1,3 +1,5 @@
+import { escapeHtml } from "./blocks.js";
+
 // Swap var() references for their current values, so the pasted article keeps the tab's
 // typography and its template's colours without the app's stylesheet.
 function bakeVars(css, computed) {
@@ -50,6 +52,9 @@ export function cleanArticle(node) {
       .join("");
     n.setAttribute("style", "position:relative;" + keep);
   });
+  // Print layouts export the A4 pages as laid out; the last page needs no page break after it.
+  const pages = c.querySelectorAll("[data-page]");
+  if (pages.length) pages[pages.length - 1].style.breakAfter = "auto";
   return c;
 }
 
@@ -62,15 +67,10 @@ export function articleHtml(node, fontLinks = []) {
   const dropFont = computed.getPropertyValue("--h1-font").trim() || "serif";
   const ink = computed.getPropertyValue("--ink").trim() || "#1E1E1E";
   const proseCss = "<style>[data-prose]>p{margin:0 0 18px;}[data-prose]>p:last-child{margin-bottom:0;}"
-    + "[data-lede=\"1\"]>p:first-child::first-letter,[data-dropcap]::first-letter{float:left;font-family:" + dropFont
+    + "[data-lede=\"1\"]>p:first-child::first-letter{float:left;font-family:" + dropFont
     + ";font-size:76px;line-height:0.72;font-weight:600;color:" + ink + ";margin:6px 12px 0 0;}</style>";
 
-  // Print layouts export the A4 pages as laid out; the last page needs no page break after it.
-  if (node.getAttribute("data-layout") !== "web") {
-    const pages = c.querySelectorAll("[data-page]");
-    if (pages.length) pages[pages.length - 1].style.breakAfter = "auto";
-    return links + proseCss + '<div data-pages="">' + c.innerHTML + "</div>";
-  }
+  if (node.getAttribute("data-layout") !== "web") return links + proseCss + '<div data-pages="">' + c.innerHTML + "</div>";
   return links + proseCss + '<article style="max-width:688px;margin:0 auto;">' + c.innerHTML + "</article>";
 }
 
@@ -88,10 +88,6 @@ function fontFaceCss() {
     });
   });
   return css;
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 }
 
 // A standalone page for Preview: the exported article with the app's fonts. Print layouts show

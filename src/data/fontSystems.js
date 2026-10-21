@@ -92,7 +92,7 @@ export const FONT_PRESETS = [
 ];
 
 // Each template's own typography, the starting point for a tab's font settings.
-export const TEMPLATE_FONT_PRESETS = [
+const TEMPLATE_FONT_PRESETS = [
   {
     id: "tpl-news", label: "News", note: "Baskervville + Satoshi",
     h1: type("baskervville", 50, 600, 1.08, -0.025), h2: type("baskervville", 28, 600, 1.2, -0.02),
@@ -127,7 +127,6 @@ export const TEMPLATE_FONT_PRESETS = [
   },
 ];
 
-export const DEFAULT_PRESET = "tpl-news";
 
 export const presetById = (id) =>
   TEMPLATE_FONT_PRESETS.find((p) => p.id === id) || FONT_PRESETS.find((p) => p.id === id) || TEMPLATE_FONT_PRESETS[0];

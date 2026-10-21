@@ -1,19 +1,22 @@
-import { NEW_BLOCK, IMAGE_TYPES, HEADING_TYPES, CHAPTER_TYPES, TEMPLATES } from "../data/index.js";
+import { NEW_BLOCK, IMAGE_TYPES, HEADING_TYPES, CHAPTER_TYPES, SECTION_TYPES, TEMPLATES } from "../data/index.js";
 import { guessLang } from "./highlight.js";
 
 let uid = 0;
 
-export function nid() {
+export function nid(prefix = "b") {
   uid += 1;
-  return "b" + Date.now().toString(36) + uid;
+  return prefix + Date.now().toString(36) + uid;
 }
 
 export function withId(block) {
   return { id: nid(), ...block };
 }
 
-export function cloneBlock(block) {
-  return JSON.parse(JSON.stringify(block));
+// Copies objects and arrays but shares strings, so undo snapshots don't duplicate photo data URLs.
+export function cloneBlock(value) {
+  if (Array.isArray(value)) return value.map(cloneBlock);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, cloneBlock(v)]));
+  return value;
 }
 
 export function createStarterBlocks(templateKey = "news") {
@@ -178,7 +181,7 @@ export function elementToBlock(o, pollNote = "") {
   const hasRows = Array.isArray(o.rows) && o.rows.length;
   const hasItems = Array.isArray(o.items) && o.items.length;
 
-  if ((HEADING_TYPES.includes(t) || CHAPTER_TYPES.includes(t)) && o.text) return { type: t, html: o.text };
+  if (SECTION_TYPES.includes(t) && o.text) return { type: t, html: o.text };
   if (t === "code" && o.text) return { type: "code", lang: o.lang || guessLang(o.text), a: o.caption || "", text: String(o.text) };
   if (t === "toc") return NEW_BLOCK.toc();
   if (t === "quote" && o.text) {
@@ -328,13 +331,24 @@ export function quotedInSource(quote, source) {
   return spans.some((span) => parts.every((p) => span.includes(p)));
 }
 
+const DEFAULT_AUTHOR = "Staff Correspondent";
+
+// The masthead an import starts with, keyed by block type.
+export function headerBlocks(headline, standfirst, author, desk) {
+  return {
+    h1: { id: nid(), type: "h1", html: headline },
+    standfirst: { id: nid(), type: "standfirst", html: standfirst },
+    byline: { id: nid(), type: "byline", a: author || DEFAULT_AUTHOR, b: desk || "Nutshell Today" },
+  };
+}
+
 // Weave the model's plan of insertions around the untouched source paragraphs,
 // keeping only the block types the chosen template allows. Paragraphs the PDF reader
 // already structured (code, images, headings) convert directly; see paraBlocks.
 // `typeOrder` is the template's starter page as block types; its header order wins.
 export function blocksFromPlan(plan, paras, allowed, { numbered = false, images = [], typeOrder = [] } = {}) {
   const headline = plan.headline || paras[0];
-  const author = plan.author || "Staff Correspondent";
+  const author = plan.author || DEFAULT_AUTHOR;
   let standfirst = plan.standfirst || "";
   // A standfirst that just restates the headline is noise.
   if (normalize(standfirst) === normalize(headline)) standfirst = "";
@@ -350,16 +364,12 @@ export function blocksFromPlan(plan, paras, allowed, { numbered = false, images 
   });
 
   // Header in the template's own order (LaTeX: title, author, then abstract, as \maketitle sets it).
-  const header = {
-    h1: { id: nid(), type: "h1", html: headline },
-    standfirst: { id: nid(), type: "standfirst", html: standfirst },
-    byline: { id: nid(), type: "byline", a: author, b: plan.desk || "Nutshell Today" },
-  };
+  const header = headerBlocks(headline, standfirst, author, plan.desk);
   const blocks = [...new Set([...typeOrder, "h1", "standfirst", "byline"])].filter((t) => header[t]).map((t) => header[t]);
   const ins = Array.isArray(plan.insertions) ? plan.insertions.slice() : [];
   ins.sort((x, y) => (x.after | 0) - (y.after | 0));
 
-  const counts = { h2: 0, quote: 0, img: 0, data: 0 };
+  const counts = { h2: 0, img: 0, data: 0 };
   const source = paras.join("\n");
   function emit(o) {
     if (String(o.type || "").toLowerCase() === "divider") {
@@ -371,7 +381,6 @@ export function blocksFromPlan(plan, paras, allowed, { numbered = false, images 
     if (blk.type === "quote" && !quotedInSource(blk.a, source)) return;
     blocks.push(withId(blk));
     if (blk.type === "h2") counts.h2++;
-    else if (blk.type === "quote") counts.quote++;
     else if (IMAGE_TYPES.includes(blk.type)) counts.img++;
     else if (["stats", "chart", "line", "poll", "timeline", "table"].includes(blk.type)) counts.data++;
   }

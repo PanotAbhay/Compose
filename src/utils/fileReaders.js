@@ -472,6 +472,15 @@ export function pickFile(accept, onPick) {
   input.click();
 }
 
+export function toDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 const MAX_IMAGE_SIDE = 2000;
 const JPEG_QUALITY = 0.86;
 // Chrome refuses CSS url() values over ~2 MB, and localStorage holds ~5 MB in total, so photos are

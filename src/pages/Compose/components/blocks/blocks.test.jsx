@@ -1,11 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { NEW_BLOCK, TEMPLATES, TEMPLATE_KEYS, TEXTISH_TYPES } from "../../../../data/index.js";
+import { NEW_BLOCK, TEMPLATES, TEMPLATE_KEYS, TEXTISH_TYPES, PROSE_TYPES } from "../../../../data/index.js";
 import { BlockFrame } from "../BlockFrame.jsx";
 import { CodeBlock } from "./CodeBlock.jsx";
 import { ChapterBlock } from "./ChapterBlock.jsx";
 import { TocBlock } from "./TocBlock.jsx";
 import { PgfPlot } from "./PgfPlot.jsx";
+import { EditableText } from "./EditableText.jsx";
+import { parseValue } from "./articleStyles.js";
 
 const TEXT_SAMPLES = {
   h1: { type: "h1", html: "Headline" },
@@ -47,7 +49,8 @@ function patched(onPatch, block) {
 }
 
 describe("every block type renders in every template", () => {
-  const types = [...Object.keys(NEW_BLOCK), "h1", "standfirst"];
+  // Prose (body, dropcap) renders through Canvas as one ProseBlock, never a BlockFrame.
+  const types = [...Object.keys(NEW_BLOCK).filter((t) => !PROSE_TYPES.includes(t)), "h1", "standfirst"];
   TEMPLATE_KEYS.forEach((key) => {
     types.forEach((type) => {
       it(key + " · " + type, () => {
@@ -211,5 +214,27 @@ describe("PgfPlot tick labels", () => {
 
   it("draws an empty chart without crashing", () => {
     expect(() => render(<PgfPlot kind="line" block={{ id: "e", bars: [] }} onPatch={vi.fn()} />)).not.toThrow();
+  });
+});
+
+describe("EditableText", () => {
+  it("commits on blur only when the text changed", () => {
+    const onCommit = vi.fn();
+    const { container } = render(<EditableText value="Same" onCommit={onCommit} />);
+    const el = container.firstChild;
+    fireEvent.blur(el);
+    expect(onCommit).not.toHaveBeenCalled();
+    el.innerText = "Changed";
+    fireEvent.blur(el);
+    expect(onCommit).toHaveBeenCalledWith("Changed");
+  });
+});
+
+describe("parseValue", () => {
+  it("reads a number past units, keeping the sign only when asked", () => {
+    expect(parseValue("12.5%")).toBe(12.5);
+    expect(parseValue("-3 pts")).toBe(3);
+    expect(parseValue("-3 pts", true)).toBe(-3);
+    expect(parseValue("n/a")).toBe(0);
   });
 });

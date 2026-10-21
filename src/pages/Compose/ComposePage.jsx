@@ -10,12 +10,13 @@ import { useBlockDrag } from "../../hooks/useBlockDrag.js";
 import { useImport } from "../../hooks/useImport.js";
 import { useAiFill } from "../../hooks/useAiFill.js";
 import { useExport } from "../../hooks/useExport.js";
-import { NEW_BLOCK, TEMPLATES } from "../../data/index.js";
+import { NEW_BLOCK, TEMPLATES, CHAPTER_TYPES } from "../../data/index.js";
 import { createStarterBlocks, cloneBlock, nid, sectionEnd, mergeProse, countWords } from "../../utils/blocks.js";
 import { articleHtml, previewDocument } from "../../utils/exportHtml.js";
 import { blocksToLatex, texFileName } from "../../utils/latexExport.js";
 import { makeZip } from "../../utils/zip.js";
 import { framedImages } from "../../utils/imageCrop.js";
+import { downloadBlob } from "../../utils/dom.js";
 import { fontLinks, fontVars } from "../../utils/fonts.js";
 import { presetSettings } from "../../data/fontSystems.js";
 import { TopBar } from "./components/TopBar.jsx";
@@ -96,7 +97,7 @@ export function ComposePage() {
     const at = cur.findIndex((x) => x.id === id);
     if (at < 0) return;
     const end = sectionEnd(cur, at);
-    const what = cur[at].type === "chapter" || cur[at].type === "appendix" ? cur[at].type : "sub-heading";
+    const what = CHAPTER_TYPES.includes(cur[at].type) ? cur[at].type : "sub-heading";
     if (!window.confirm("Delete this " + what + " and the " + (end - at - 1) + " blocks under it?")) return;
     const next = cur.slice();
     next.splice(at, end - at);
@@ -159,11 +160,7 @@ export function ComposePage() {
     const blob = images.length
       ? makeZip([{ name: "main.tex", data: new TextEncoder().encode(tex) }, ...images])
       : new Blob([tex], { type: "application/x-tex" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = name + (images.length ? ".zip" : ".tex");
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    downloadBlob(blob, name + (images.length ? ".zip" : ".tex"));
     flash(images.length
       ? "EXPORTED " + name.toUpperCase() + ".ZIP WITH " + images.length + " PHOTO" + (images.length > 1 ? "S" : "") + " — UPLOAD TO OVERLEAF"
       : "EXPORTED " + name.toUpperCase() + ".TEX");

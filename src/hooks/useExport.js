@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { articleHtml } from "../utils/exportHtml.js";
 import { buildDocument, documentTitle } from "../utils/exportDocument.js";
 import { fontLinks } from "../utils/fonts.js";
+import { downloadBlob } from "../utils/dom.js";
 
 function articleNode() {
   return document.querySelector("[data-article]");
@@ -20,21 +21,6 @@ export function useExport({ docTitle, fonts, flash }) {
 
   useEffect(() => () => clearTimeout(copiedTimerRef.current), []);
 
-  async function run(work, failMsg) {
-    const node = articleNode();
-    if (!node || busyRef.current) return;
-    busyRef.current = true;
-    setExporting(true);
-    try {
-      await work(node);
-    } catch (err) {
-      flash(failMsg + " — " + String((err && err.message) || err).toUpperCase(), true);
-    } finally {
-      busyRef.current = false;
-      setExporting(false);
-    }
-  }
-
   function copyHtml() {
     const node = articleNode();
     if (!node) return;
@@ -52,19 +38,22 @@ export function useExport({ docTitle, fonts, flash }) {
     else failed();
   }
 
-  function downloadHtml() {
-    return run(async (node) => {
+  async function downloadHtml() {
+    const node = articleNode();
+    if (!node || busyRef.current) return;
+    busyRef.current = true;
+    setExporting(true);
+    try {
       const html = await buildDocument({ node, title: docTitle, fontLinks: fontLinks(fonts) });
-      const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName(docTitle) + ".html";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      flash("DOWNLOADED " + a.download.toUpperCase());
-    }, "HTML EXPORT FAILED");
+      const name = fileName(docTitle) + ".html";
+      downloadBlob(new Blob([html], { type: "text/html;charset=utf-8" }), name);
+      flash("DOWNLOADED " + name.toUpperCase());
+    } catch (err) {
+      flash("HTML EXPORT FAILED — " + String((err && err.message) || err).toUpperCase(), true);
+    } finally {
+      busyRef.current = false;
+      setExporting(false);
+    }
   }
 
   return { downloadHtml, copyHtml, exporting, exported };

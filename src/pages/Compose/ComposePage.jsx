@@ -17,6 +17,7 @@ import { articleHtml, previewDocument } from "../../utils/exportHtml.js";
 import { blocksToLatex, texFileName } from "../../utils/latexExport.js";
 import { makeZip } from "../../utils/zip.js";
 import { framedImages } from "../../utils/imageCrop.js";
+import { downloadBlob } from "../../utils/dom.js";
 import { fontLinks, fontVars } from "../../utils/fonts.js";
 import { presetSettings, presetById } from "../../data/fontSystems.js";
 import { TopBar } from "./components/TopBar.jsx";
@@ -269,11 +270,7 @@ export function ComposePage() {
       const blob = images.length
         ? makeZip([{ name: "main.tex", data: new TextEncoder().encode(tex) }, ...images])
         : new Blob([tex], { type: "application/x-tex" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = name + (images.length ? ".zip" : ".tex");
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      downloadBlob(blob, name + (images.length ? ".zip" : ".tex"));
       flash(images.length
         ? "EXPORTED " + name.toUpperCase() + ".ZIP WITH " + plural(images.length, "PHOTO") + " — UPLOAD TO OVERLEAF"
         : "EXPORTED " + name.toUpperCase() + ".TEX");

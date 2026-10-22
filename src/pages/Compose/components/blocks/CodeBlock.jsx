@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { pressable } from "../../../../utils/dom.js";
 import { highlightLines, CODE_LANGS } from "../../../../utils/highlight.js";
 import { EditableText } from "./EditableText.jsx";
@@ -55,6 +55,7 @@ export function CodeBlock({ block, theme, slice, onPatch }) {
   const [editing, setEditing] = useState(false);
   const t = theme.code || {};
   const text = block.text || "";
+  const lines = useMemo(() => highlightLines(text, block.lang), [text, block.lang]);
   const sliced = !editing && slice;
 
   function handleBlur(e) {
@@ -110,7 +111,7 @@ export function CodeBlock({ block, theme, slice, onPatch }) {
                 style={TEXTAREA}
               />
             ) : (
-              highlightLines(text, block.lang).map((runs, i) => (
+              lines.map((runs, i) => (
                 <div key={i} style={{ display: "flex" }}>
                   <span style={GUTTER}>{i + 1}</span>
                   <span style={{ flex: 1, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", tabSize: 4 }}>

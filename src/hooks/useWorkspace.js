@@ -2,14 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { STORAGE_KEYS, TEMPLATES, LAYOUT_KEYS } from "../data/index.js";
 import { presetSettings } from "../data/fontSystems.js";
 import { readStorage, readJson, writeStorage } from "../utils/storage.js";
-import { createStarterBlocks } from "../utils/blocks.js";
+import { createStarterBlocks, nid } from "../utils/blocks.js";
 import { validFonts } from "../utils/fonts.js";
-
-let uid = 0;
-function docId() {
-  uid += 1;
-  return "d" + Date.now().toString(36) + uid;
-}
 
 function uniqueTitle(docs, label) {
   const taken = new Set(docs.map((d) => d.title));
@@ -23,7 +17,7 @@ function uniqueTitle(docs, label) {
 function makeDoc(templateKey, docs, extra = {}) {
   const template = TEMPLATES[templateKey];
   return {
-    id: docId(),
+    id: nid("d"),
     title: uniqueTitle(docs, template.label),
     templateKey,
     blocks: createStarterBlocks(templateKey),

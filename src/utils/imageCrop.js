@@ -1,7 +1,7 @@
 import { IMAGE_TYPES } from "../data/index.js";
 
 const MAX_SIDE = 2000;
-const DEFAULT_FRAME = { x: 50, y: 50, zoom: 1 };
+export const DEFAULT_FRAME = { x: 50, y: 50, zoom: 1 };
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {

@@ -527,10 +527,6 @@ a:hover { color: var(--red); }
   float: left; font-family: var(--h1-font, var(--font-serif)); font-size: 76px;
   line-height: 0.72; font-weight: 600; color: var(--ink); margin: 6px 12px 0 0;
 }
-[data-dropcap]::first-letter {
-  float: left; font-family: var(--h1-font, var(--font-serif)); font-size: 76px;
-  line-height: 0.72; font-weight: 600; color: var(--ink); margin: 6px 12px 0 0;
-}
 .nt-blk [data-chrome] { opacity: 0; transition: opacity 0.12s ease; }
 .nt-blk:hover [data-chrome], .nt-blk[data-sel="1"] [data-chrome], .nt-blk:focus-within [data-chrome] { opacity: 1; }
 /* Read by screen readers, never drawn (the status note's live region). */

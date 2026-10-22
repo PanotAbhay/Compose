@@ -3,7 +3,7 @@ import { FigureHeader } from "./FigureHeader.jsx";
 import { Caption } from "./Caption.jsx";
 import { RowControls } from "./RowControls.jsx";
 import { PgfPlot } from "./PgfPlot.jsx";
-import { FIGURE, maxValue } from "./articleStyles.js";
+import { FIGURE, maxValue, parseValue } from "./articleStyles.js";
 
 const X0 = 40;
 const X1 = 628;
@@ -68,10 +68,8 @@ export function LineChartBlock({ block, theme, number, onPatch }) {
     : "";
 
   return (
-    <figure style={{ ...FIGURE, ...(theme.captions && { paddingTop: 22 }) }}>
-      {!theme.captions && (
-        <FigureHeader block={block} onPatch={onPatch} titlePlaceholder="Trend title" notePlaceholder="Unit" marginBottom={20} />
-      )}
+    <figure style={FIGURE}>
+      <FigureHeader block={block} onPatch={onPatch} titlePlaceholder="Trend title" notePlaceholder="Unit" marginBottom={20} />
       <svg viewBox="0 0 640 236" style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}>
         <line x1="40" y1="22" x2="628" y2="22" stroke="var(--rule-light)" strokeWidth="1"></line>
         <line x1="40" y1="117" x2="628" y2="117" stroke="var(--rule-light)" strokeWidth="1"></line>
@@ -88,7 +86,7 @@ export function LineChartBlock({ block, theme, number, onPatch }) {
             <EditableText
               as="span"
               value={String(r.value)}
-              onCommit={(v) => onPatch((x) => { x.bars[i].value = parseFloat(String(v).replace(/[^\d.-]/g, "")) || 0; })}
+              onCommit={(v) => onPatch((x) => { x.bars[i].value = parseValue(v, true); })}
               style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink)", fontVariantNumeric: "lining-nums" }}
             />
             <EditableText
@@ -101,18 +99,6 @@ export function LineChartBlock({ block, theme, number, onPatch }) {
           </div>
         ))}
       </div>
-      {theme.captions && (
-        <Caption
-          kind="Figure"
-          number={number}
-          placeholder="Trend title"
-          value={block.a}
-          onCommit={(v) => onPatch((x) => { x.a = v; })}
-          unit={block.b}
-          onUnit={(v) => onPatch((x) => { x.b = v; })}
-          style={{ marginTop: 14 }}
-        />
-      )}
       {controls}
     </figure>
   );

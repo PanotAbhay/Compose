@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { pressable } from "../../../../utils/dom.js";
+import { DEFAULT_FRAME } from "../../../../utils/imageCrop.js";
 import "./ImageSlot.css";
 
-export const DEFAULT_FRAME = { x: 50, y: 50, zoom: 1 };
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+const clampZoom = (z) => Math.round(clamp(z, MIN_ZOOM, MAX_ZOOM) * 100) / 100;
 
 // The photo fills the slot (cover); x/y pick the focal point and zoom scales around it. Inline
 // so Copy HTML and Preview keep the crop.
@@ -51,7 +52,7 @@ export function ImageSlot({ src, frame, height, aspect, emptyStyle, children, on
   }
 
   function zoomTo(zoom) {
-    return { ...shown, zoom: Math.round(clamp(zoom, MIN_ZOOM, MAX_ZOOM) * 100) / 100 };
+    return { ...shown, zoom: clampZoom(zoom) };
   }
 
   // Pinch on a trackpad (or ⌘/Ctrl + scroll) zooms; plain scrolling still scrolls the page.
@@ -62,7 +63,7 @@ export function ImageSlot({ src, frame, height, aspect, emptyStyle, children, on
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const base = latest.current.live || latest.current.saved;
-      const next = { ...base, zoom: Math.round(clamp(base.zoom * (1 - e.deltaY * 0.01), MIN_ZOOM, MAX_ZOOM) * 100) / 100 };
+      const next = { ...base, zoom: clampZoom(base.zoom * (1 - e.deltaY * 0.01)) };
       preview(next);
       // Save once the gesture pauses.
       clearTimeout(wheelTimer.current);

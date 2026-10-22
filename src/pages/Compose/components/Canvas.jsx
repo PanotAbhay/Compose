@@ -1,5 +1,5 @@
 import { useState, useRef, useLayoutEffect } from "react";
-import { PROSE_TYPES, HEADING_TYPES, CHAPTER_TYPES, IMAGE_TYPES } from "../../../data/index.js";
+import { PROSE_TYPES, SECTION_TYPES, CHAPTER_TYPES, IMAGE_TYPES } from "../../../data/index.js";
 import { sectionEnd } from "../../../utils/blocks.js";
 import { A4, planPages } from "../../../utils/pagination.js";
 import { BlockFrame } from "./BlockFrame.jsx";
@@ -13,9 +13,6 @@ const MASTHEAD_TYPES = ["h1", "standfirst", "byline"];
 const TWO_COLUMN_SCALE = 0.8;
 // Blocks that may float past following paragraphs when they don't fit (see planPages).
 const FLOAT_TYPES = ["image", "pair", "gallery", "chart", "line", "poll", "table", "stats", "timeline", "nutshell"];
-const SECTION_TYPES = [...HEADING_TYPES, ...CHAPTER_TYPES];
-// Headings listed by a contents block.
-const OUTLINE_TYPES = [...CHAPTER_TYPES, "h2", "h3"];
 
 // Inline because Copy HTML and Preview export the pages as they are.
 const PAGE_STYLE = {
@@ -258,7 +255,7 @@ export function Canvas({
 
   const pageOf = pages ? pageNumbers(pages) : {};
   const outline = blocks.some((b) => b.type === "toc")
-    ? blocks.filter((b) => OUTLINE_TYPES.includes(b.type)).map((b) => ({ id: b.id, type: b.type, number: numbers[b.id], text: plainText(b.html), page: pageOf[b.id] }))
+    ? blocks.filter((b) => SECTION_TYPES.includes(b.type)).map((b) => ({ id: b.id, type: b.type, number: numbers[b.id], text: plainText(b.html), page: pageOf[b.id] }))
     : [];
 
   // Re-measure after every render; a changed height re-flows the pages once.
@@ -275,7 +272,7 @@ export function Canvas({
   function handleDragOver(e) {
     e.preventDefault();
     const b = dropBoundary(innerRef.current, e.clientX, e.clientY, zoom);
-    if (b) onShowDrop(b.index, b.line, b.prose);
+    if (b) onShowDrop(b.index, b.line);
   }
 
   function handleDrop(e) {
@@ -412,7 +409,7 @@ export function Canvas({
         )}
 
         <div data-chrome="">
-          <DropLine visible={drop.index >= 0 && !!drop.line} top={drop.line ? drop.line.top : 0} left={drop.line ? drop.line.left : 0} width={drop.line ? drop.line.width : 0} raised />
+          <DropLine visible={drop.index >= 0 && !!drop.line} top={drop.line ? drop.line.top : 0} left={drop.line ? drop.line.left : 0} width={drop.line ? drop.line.width : 0} />
         </div>
       </div>
     </div>

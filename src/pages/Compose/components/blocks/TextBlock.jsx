@@ -1,5 +1,5 @@
 import { EditableText } from "./EditableText.jsx";
-import { BODY_METRICS, BODY_TEXT } from "./articleStyles.js";
+import { BODY_METRICS } from "./articleStyles.js";
 
 const LIST_TEXT = {
   ...BODY_METRICS,
@@ -28,14 +28,12 @@ const TEXT_VARIANTS = {
     placeholder: "Smaller sub-heading",
     style: { fontFamily: "var(--h3-font, var(--font-sans))", fontSize: "var(--h3-size, 17px)", fontWeight: "var(--h3-weight, 700)", lineHeight: "var(--h3-lh, 1.3)", letterSpacing: "var(--h3-ls, var(--sans-body-ls))", color: "var(--ink)", margin: "32px 0 14px" },
   },
-  body: { as: "p", placeholder: "Body paragraph", style: BODY_TEXT },
-  dropcap: { as: "p", placeholder: "Opening paragraph", dropcap: true, style: { display: "flow-root", ...BODY_TEXT } },
   bullets: { as: "ul", style: { ...LIST_TEXT, paddingLeft: 22, listStyle: "disc" } },
   numbered: { as: "ol", style: { ...LIST_TEXT, paddingLeft: 24, listStyle: "decimal" } },
 };
 
 // Which theme entry restyles each text type.
-const THEME_PART = { h1: "h1", standfirst: "standfirst", h2: "h2", h3: "h3", body: "body", dropcap: "body", bullets: "list", numbered: "list" };
+const THEME_PART = { h1: "h1", standfirst: "standfirst", h2: "h2", h3: "h3", bullets: "list", numbered: "list" };
 
 // Same size as the abstract itself (\small in LaTeX), set bold.
 const ABSTRACT_LABEL = { textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: "var(--standfirst-size)", color: "var(--ink)", marginBottom: 6 };
@@ -72,12 +70,5 @@ export function TextBlock({ block, theme, number, onPatch }) {
     );
   }
 
-  return (
-    <EditableText
-      as={variant.as}
-      {...editable}
-      data-dropcap={variant.dropcap ? "" : undefined}
-      style={style}
-    />
-  );
+  return <EditableText as={variant.as} {...editable} style={style} />;
 }

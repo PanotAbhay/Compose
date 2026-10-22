@@ -1,6 +1,5 @@
 export const STORAGE_KEYS = {
   doc: "nt-fb-doc",
-  docPrev: "nt-fb-doc-prev",
   ai: "nt-fb-ai",
   zoom: "nt-fb-zoom",
   recovered: "nt-fb-recovered",
@@ -15,6 +14,8 @@ export const IMAGE_TYPES = ["image", "pair", "gallery"];
 export const HEADING_TYPES = ["h2", "h3"];
 // Chapters own everything up to the next chapter and open a new page in print layouts.
 export const CHAPTER_TYPES = ["chapter", "appendix"];
+// Headings that start a section: they keep with what follows and are listed by a contents block.
+export const SECTION_TYPES = [...HEADING_TYPES, ...CHAPTER_TYPES];
 // Dropped beside a paragraph, these are built by the AI from that text.
 export const AI_FILL_TYPES = ["h2", "h3", "quote", "bullets", "numbered", "stats", "chart", "line", "poll", "table", "timeline", "nutshell"];
 

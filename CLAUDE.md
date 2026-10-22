@@ -54,7 +54,7 @@ Tests sit next to the code they cover (`*.test.js` / `*.test.jsx`) and run in js
 
 ## Git
 
-- Remote: `PanotAbhay/Compose`. Several teammates push to the same branches, so run `git pull --rebase` before pushing.
+- Remotes: `origin` is `PanotAbhay/Compose` (where work goes); `upstream` is the original team repo `shazzadul-haque/Compose` (formerly `PanotAbhay/aihackathon`). Several teammates push to the same branches, so run `git pull --rebase` before pushing.
 - **Never add Claude attribution** (no `Co-Authored-By: Claude`, no "Generated with Claude Code") in commits or PRs.
 - Don't commit `dist/`, `node_modules/` or `.claude/settings.local.json`; all three are gitignored.
-- `main` has diverged from the feature branch and holds a teammate's `.claude/settings.json` auto-pull hook. Expect overlap when merging.
+- `.claude/settings.json` holds a teammate's hook that runs `git pull --ff-only` on session start and on every prompt.

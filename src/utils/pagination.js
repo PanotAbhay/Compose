@@ -1,6 +1,5 @@
 // A4 at 96 dpi, with ~19 mm margins. Values are CSS px before the editor's zoom.
 export const A4 = { width: 794, height: 1123, margin: 72 };
-export const PAGE_BODY = A4.height - A4.margin * 2;
 
 // Spare room so measuring error (collapsed margins, a line added mid-edit) never pushes text off the page.
 const SAFETY = 16;

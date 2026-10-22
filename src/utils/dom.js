@@ -59,10 +59,20 @@ export function bindContent(node, value, asHtml) {
   }
 }
 
-function selectionNode(selection) {
+export function selectionNode(selection) {
   let node = selection && selection.anchorNode;
   if (node && node.nodeType === 3) node = node.parentElement;
   return node;
+}
+
+export function downloadBlob(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 // Block ids of the prose paragraphs a non-empty selection touches.

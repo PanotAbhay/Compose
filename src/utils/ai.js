@@ -1,6 +1,7 @@
 import { AI_MODELS } from "../data/index.js";
 import { PDF_TRANSCRIBE_PROMPT } from "./prompts.js";
 import { parseJsonReply } from "./blocks.js";
+import { toDataUrl } from "./fileReaders.js";
 
 const ANTHROPIC_HEADERS = {
   "content-type": "application/json",
@@ -187,15 +188,6 @@ export async function callAiJson(config, system, user, maxTokens, { signal } = {
   }
 }
 
-function readAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(",")[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 // Scanned PDFs have no text layer — hand the file to a vision model instead.
 export async function transcribePdf(config, file) {
   if (config.provider !== "anthropic" && config.provider !== "gemini") {
@@ -204,7 +196,7 @@ export async function transcribePdf(config, file) {
   if (!config.key) throw new Error("That PDF is scanned. Add an API key in Settings to read it, or paste the text.");
   if (file.size > 28 * 1024 * 1024) throw new Error("That PDF is too large to read with AI (max ~28MB).");
 
-  const data = await readAsBase64(file);
+  const data = (await toDataUrl(file)).split(",")[1];
 
   if (config.provider === "anthropic") {
     const r = await send("Anthropic", "https://api.anthropic.com/v1/messages", {

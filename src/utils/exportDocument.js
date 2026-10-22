@@ -2,6 +2,8 @@ import indexCss from "../index.css?raw";
 import pageCss from "./exportPage.css?raw";
 import { IMAGE_TYPES } from "../data/index.js";
 import { cleanArticle } from "./exportHtml.js";
+import { escapeHtml } from "./blocks.js";
+import { toDataUrl } from "./fileReaders.js";
 
 // Builds a complete, self-contained HTML page from the live article: colour and
 // type tokens and embedded fonts, so it opens offline.
@@ -16,20 +18,11 @@ const KEEP_FONT = /^(?:(?:baskervville(?:-italic)?|roboto-mono)-latin(?:-ext)?|s
 const SOURCE_CSS = indexCss.replace(/\/\*[\s\S]*?\*\//g, "");
 const TOKENS_CSS = (SOURCE_CSS.match(/:root\s*\{[^}]*\}/g) || []).join("\n");
 // Paragraph spacing and drop caps live in index.css because the editor's own paragraphs need them too.
-const PROSE_CSS = (SOURCE_CSS.match(/[^{}]*\[data-(?:prose|lede|dropcap)[^{}]*\{[^}]*\}/g) || []).map((r) => r.trim()).join("\n");
+const PROSE_CSS = (SOURCE_CSS.match(/[^{}]*\[data-(?:prose|lede)[^{}]*\{[^}]*\}/g) || []).map((r) => r.trim()).join("\n");
 
 function prop(block, name) {
   const m = block.match(new RegExp(name + "\\s*:\\s*([^;}]+)"));
   return m ? m[1].trim() : "";
-}
-
-function toDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
 }
 
 async function embed(url) {
@@ -117,11 +110,6 @@ function tokensCss(node) {
 const PRINT_CSS = "body{background:#E7E4DE;} [data-pages]{padding:32px 0;} @page{size:A4;margin:0;}"
   + " @media print{body{background:none;} [data-pages]{padding:0;} [data-page]{box-shadow:none!important;margin:0!important;}}";
 
-// The drag-and-drop indicator: an empty, absolutely placed line in every block.
-function isDropLine(el) {
-  return el.style.position === "absolute" && el.style.pointerEvents === "none" && !el.firstChild;
-}
-
 // Photos are CSS backgrounds while editing; the page gets real <img>s.
 // Empty slots go, and so does a figure left with none.
 function photosToImages(article) {
@@ -150,18 +138,11 @@ function exportArticle(node, print) {
   if (print) article.setAttribute("data-pages", "");
   article.append(...Array.from(src.childNodes));
   for (const wrap of article.querySelectorAll("[data-type]")) {
-    for (const kid of Array.from(wrap.children)) if (isDropLine(kid)) kid.remove();
     const prose = wrap.querySelector(":scope > [data-prose]");
     if (prose) prose.removeAttribute("data-ids");
   }
-  const pages = article.querySelectorAll("[data-page]");
-  if (pages.length) pages[pages.length - 1].style.breakAfter = "auto";
   photosToImages(article);
   return article.outerHTML;
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 }
 
 export function documentTitle(title) {
